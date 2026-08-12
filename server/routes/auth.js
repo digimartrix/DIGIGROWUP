@@ -7,6 +7,7 @@ import User from '../models/User.js';
 import ActivityLog from '../models/ActivityLog.js';
 import Course from '../models/Course.js';
 import Enrollment from '../models/Enrollment.js';
+import Notification from '../models/Notification.js';
 import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -56,6 +57,29 @@ router.post(
       }
 
       const token = signToken(user);
+
+      // Create welcome notification in MongoDB
+      Notification.create({
+        userId: user._id,
+        message: `Welcome to DigiGrowUp, ${user.name}! Your account is active with role ${user.role.toUpperCase()}. You have ${user.creditsBalance || 245} DigiCredits.`,
+        type: 'reward',
+        read: false
+      }).catch(() => {});
+
+      // Asynchronously sync registration with Google Apps Script
+      const appsScriptUrl = process.env.GOOGLE_APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbwUD3QyiFho_cTag9RWgD5AS3VAj8eG3dCt5veAGtD0CsTe1LFsh7NyN8GCnmqYI4cYdw/exec';
+      if (appsScriptUrl) {
+        fetch(appsScriptUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: user.name,
+            email: user.email,
+            content: `New user registration: ${user.name} (${user.email}) registered as ${user.role.toUpperCase()}. Assigned ${user.creditsBalance || 245} DigiCredits.`,
+            timestamp: new Date().toISOString()
+          })
+        }).catch(err => console.warn('[APPS_SCRIPT_NOTIF_SYNC_FAILED]', err.message));
+      }
 
       // Log registration
       ActivityLog.create({ userId: user._id, userName: user.name, userRole: user.role, action: 'USER_REGISTERED', target: user.name }).catch(() => {});
