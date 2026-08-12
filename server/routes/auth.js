@@ -133,6 +133,15 @@ router.put('/profile', protect, async (req, res, next) => {
 
     // Re-sign token
     const token = signToken(user);
+    res.json({
+      success: true,
+      message: 'Profile updated successfully.',
+      token,
+      user: { id: user._id, name: user.name, email: user.email, role: user.role }
+    });
+  } catch (err) { next(err); }
+});
+
 // GET /api/auth/me - Get current user profile and role
 router.get('/me', protect, async (req, res, next) => {
   try {
