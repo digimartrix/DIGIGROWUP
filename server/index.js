@@ -77,13 +77,14 @@ import ecosystemRoutes from './routes/ecosystem.js';
 import mentorRoutes from './routes/mentors.js';
 import communityRoutes from './routes/community.js';
 import eventRoutes from './routes/events.js';
-import creditRoutes from './routes/credits.js';
+import creditRoutes, { handleCreateOrder, handleVerifyPayment } from './routes/credits.js';
 import resourceRoutes from './routes/resources.js';
 import notificationRoutes from './routes/notifications.js';
 import achievementRoutes from './routes/achievements.js';
 import projectRoutes from './routes/projects.js';
 import adminRoutes from './routes/admin.js';
 import instructorRoutes from './routes/instructor.js';
+import { protect } from './middleware/auth.js';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
@@ -103,6 +104,10 @@ app.use('/api/achievements', achievementRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/instructor', instructorRoutes);
+
+// Root Razorpay standard checkout endpoints
+app.post('/api/create-order', protect, handleCreateOrder);
+app.post('/api/verify-payment', protect, handleVerifyPayment);
 
 // Global error handler — never leaks stack traces to client
 app.use((err, req, res, next) => {

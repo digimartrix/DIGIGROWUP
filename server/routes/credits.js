@@ -8,10 +8,10 @@ import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Initialize Razorpay instance
+// Initialize Razorpay instance with latest credentials
 const getRazorpayInstance = () => {
-  const key_id = process.env.RAZORPAY_KEY_ID || 'rzp_test_TOktzHxMX9hJ7r';
-  const key_secret = process.env.RAZORPAY_KEY_SECRET || 'dU038AbbVS44UUNDJaoHoJCT';
+  const key_id = process.env.RAZORPAY_KEY_ID || 'rzp_test_TOl3ZXZSruwwBj';
+  const key_secret = process.env.RAZORPAY_KEY_SECRET || '6xQw31SKVgTW3X3u7ruAQOgf';
   return new Razorpay({ key_id, key_secret });
 };
 
@@ -22,6 +22,7 @@ const CREDIT_PACKAGES = [
     name: 'Starter Pack',
     credits: 100,
     bonus: 0,
+    totalCredits: 100,
     priceINR: 99,
     description: 'Perfect for unlocking 2 standard courses or project modules.',
     badge: 'ENTRY'
@@ -63,7 +64,7 @@ router.get('/packages', (req, res) => {
   res.json({
     success: true,
     packages: CREDIT_PACKAGES,
-    keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_TOktzHxMX9hJ7r'
+    keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_TOl3ZXZSruwwBj'
   });
 });
 
@@ -85,28 +86,42 @@ router.get('/balance', protect, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/credits/create-order - Create Razorpay Order
-router.post('/create-order', protect, async (req, res, next) => {
+// POST /api/credits/create-order (and /api/create-order) - Standard Razorpay Order Creation
+export const handleCreateOrder = async (req, res, next) => {
   try {
-    const { packageId } = req.body;
-    const pkg = CREDIT_PACKAGES.find(p => p.id === packageId);
-    if (!pkg) {
-      return res.status(400).json({ success: false, message: 'Invalid credit package selected.' });
+    const { packageId, amount, currency = 'INR', receipt } = req.body;
+    let finalAmountInPaise = 0;
+    let selectedPkg = null;
+
+    if (packageId) {
+      selectedPkg = CREDIT_PACKAGES.find(p => p.id === packageId);
+      if (!selectedPkg) {
+        return res.status(400).json({ success: false, message: 'Invalid credit package selected.' });
+      }
+      finalAmountInPaise = selectedPkg.priceINR * 100;
+    } else if (amount) {
+      // Amount in paise or rupees (if < 100, treated as rupees; if >= 100, validated as paise)
+      const numAmount = Number(amount);
+      finalAmountInPaise = numAmount < 100 ? Math.round(numAmount * 100) : Math.round(numAmount);
+    } else {
+      finalAmountInPaise = 9900; // Default ₹99
+    }
+
+    if (finalAmountInPaise < 100) {
+      return res.status(400).json({ success: false, message: 'Minimum order amount must be at least 100 paise (₹1).' });
     }
 
     const razorpay = getRazorpayInstance();
-    const amountInPaise = pkg.priceINR * 100; // Razorpay expects amount in paise
-
     const orderOptions = {
-      amount: amountInPaise,
-      currency: 'INR',
-      receipt: `rcpt_${req.user.id.slice(-6)}_${Date.now().toString().slice(-6)}`,
+      amount: finalAmountInPaise,
+      currency: currency || 'INR',
+      receipt: receipt || `rcpt_${req.user?.id ? req.user.id.slice(-6) : 'guest'}_${Date.now().toString().slice(-6)}`,
       notes: {
-        userId: String(req.user.id),
-        userEmail: req.user.email,
-        packageId: pkg.id,
-        credits: String(pkg.totalCredits || pkg.credits),
-        packageName: pkg.name
+        userId: req.user?.id ? String(req.user.id) : 'guest',
+        userEmail: req.user?.email || '',
+        packageId: selectedPkg?.id || 'custom',
+        credits: String(selectedPkg?.totalCredits || selectedPkg?.credits || Math.round(finalAmountInPaise / 100)),
+        packageName: selectedPkg?.name || 'DigiCredits Top-up'
       }
     };
 
@@ -114,91 +129,109 @@ router.post('/create-order', protect, async (req, res, next) => {
 
     res.json({
       success: true,
+      order_id: order.id,
       orderId: order.id,
+      id: order.id,
       amount: order.amount,
       currency: order.currency,
-      keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_TOktzHxMX9hJ7r',
-      package: pkg
+      key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_TOl3ZXZSruwwBj',
+      keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_TOl3ZXZSruwwBj',
+      package: selectedPkg
     });
   } catch (err) {
-    console.error('[RAZORPAY_ORDER_ERROR]', err);
-    res.status(500).json({ success: false, message: err.message || 'Failed to create payment order.' });
+    console.error('[RAZORPAY_CREATE_ORDER_ERROR]', err);
+    res.status(500).json({ success: false, message: err.message || 'Failed to create Razorpay order.' });
   }
-});
+};
 
-// POST /api/credits/verify-payment - Verify signature and credit user account
-router.post('/verify-payment', protect, async (req, res, next) => {
+router.post('/create-order', protect, handleCreateOrder);
+
+// POST /api/credits/verify-payment (and /api/verify-payment) - Standard Signature Verification
+export const handleVerifyPayment = async (req, res, next) => {
   try {
     const {
       razorpay_order_id,
+      order_id,
       razorpay_payment_id,
+      payment_id,
       razorpay_signature,
+      signature,
       packageId
     } = req.body;
 
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return res.status(400).json({ success: false, message: 'Missing payment verification parameters.' });
+    const orderId = razorpay_order_id || order_id;
+    const paymentId = razorpay_payment_id || payment_id;
+    const clientSignature = razorpay_signature || signature;
+
+    if (!orderId || !paymentId || !clientSignature) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required payment verification parameters (order_id, payment_id, signature).'
+      });
+    }
+
+    const key_secret = process.env.RAZORPAY_KEY_SECRET || '6xQw31SKVgTW3X3u7ruAQOgf';
+
+    // Verify HMAC-SHA256 signature
+    const hmac = crypto.createHmac('sha256', key_secret);
+    hmac.update(`${orderId}|${paymentId}`);
+    const generatedSignature = hmac.digest('hex');
+
+    if (generatedSignature !== clientSignature) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment verification failed: Signature mismatch. Transaction not authenticated.'
+      });
     }
 
     const pkg = CREDIT_PACKAGES.find(p => p.id === packageId);
-    if (!pkg) {
-      return res.status(400).json({ success: false, message: 'Invalid package reference.' });
+    const creditsToAdd = pkg ? Number(pkg.totalCredits || pkg.credits) : 100;
+
+    // Credit user balance in MongoDB
+    let newBalance = 0;
+    if (req.user?.id) {
+      const user = await User.findById(req.user.id);
+      if (user) {
+        user.creditsBalance = (user.creditsBalance || 0) + creditsToAdd;
+        user.careerReadinessScore = Math.min(100, (user.careerReadinessScore || 0) + 5);
+        await user.save();
+        newBalance = user.creditsBalance;
+
+        // Log transaction in CreditTransaction
+        await CreditTransaction.create({
+          userId: user._id,
+          type: 'EARN',
+          amount: creditsToAdd,
+          reason: `Purchased ${pkg ? pkg.name : `${creditsToAdd} Credits`} via Razorpay (Payment ID: ${paymentId})`,
+        });
+
+        // Log to ActivityLog
+        ActivityLog.create({
+          userId: user._id,
+          userName: user.name,
+          userRole: user.role,
+          action: 'USER_ROLE_CHANGED',
+          target: `Razorpay Top-up: ${creditsToAdd} DigiCredits`,
+          metadata: { orderId, paymentId, packageId }
+        }).catch(() => {});
+      }
     }
-
-    const key_secret = process.env.RAZORPAY_KEY_SECRET || 'dU038AbbVS44UUNDJaoHoJCT';
-
-    // Verify HMAC SHA256 signature
-    const hmac = crypto.createHmac('sha256', key_secret);
-    hmac.update(`${razorpay_order_id}|${razorpay_payment_id}`);
-    const generatedSignature = hmac.digest('hex');
-
-    if (generatedSignature !== razorpay_signature) {
-      return res.status(400).json({ success: false, message: 'Payment verification failed: Invalid signature.' });
-    }
-
-    const creditsToAdd = Number(pkg.totalCredits || pkg.credits);
-
-    // Credit user account
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
-
-    user.creditsBalance = (user.creditsBalance || 0) + creditsToAdd;
-    user.careerReadinessScore = Math.min(100, (user.careerReadinessScore || 0) + 5);
-    await user.save();
-
-    // Log credit transaction
-    await CreditTransaction.create({
-      userId: user._id,
-      type: 'EARN',
-      amount: creditsToAdd,
-      reason: `Purchased ${pkg.name} via Razorpay (Payment ID: ${razorpay_payment_id})`,
-    });
-
-    // Log to ActivityLog
-    ActivityLog.create({
-      userId: user._id,
-      userName: user.name,
-      userRole: user.role,
-      action: 'USER_ROLE_CHANGED', // or general credit topup
-      target: `Top-up: ${creditsToAdd} DigiCredits (₹${pkg.priceINR})`,
-      metadata: { orderId: razorpay_order_id, paymentId: razorpay_payment_id, packageId }
-    }).catch(() => {});
 
     res.json({
       success: true,
-      message: `🎉 Success! Added ${creditsToAdd} DigiCredits to your wallet.`,
-      creditsBalance: user.creditsBalance,
-      transaction: {
-        paymentId: razorpay_payment_id,
-        creditsAdded: creditsToAdd,
-        newBalance: user.creditsBalance
-      }
+      status: 'success',
+      message: `🎉 Payment verified successfully! Added ${creditsToAdd} DigiCredits to your wallet.`,
+      creditsBalance: newBalance,
+      paymentId,
+      orderId
     });
   } catch (err) {
     console.error('[RAZORPAY_VERIFY_ERROR]', err);
-    res.status(500).json({ success: false, message: 'Internal server error verifying payment.' });
+    res.status(500).json({ success: false, message: 'Internal server error during payment verification.' });
   }
-});
+};
+
+router.post('/verify-payment', protect, handleVerifyPayment);
 
 // POST /api/credits/reward - Reward credits dynamically for passing code arena challenges
 router.post('/reward', protect, async (req, res, next) => {

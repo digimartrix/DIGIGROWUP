@@ -111,8 +111,9 @@ export default function DigiCredits() {
       const { orderId, amount, currency, keyId } = orderRes.data
 
       // 2. Open Razorpay Checkout Modal
+      const razorpayKey = keyId || import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TOl3ZXZSruwwBj';
       const options = {
-        key: keyId || 'rzp_test_TOktzHxMX9hJ7r',
+        key: razorpayKey,
         amount: amount,
         currency: currency || 'INR',
         name: 'DigiGrowUp Learning Platform',
