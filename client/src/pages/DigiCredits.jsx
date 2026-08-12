@@ -236,10 +236,35 @@ export default function DigiCredits() {
               Secure payments via UPI, Credit/Debit Cards, NetBanking, and Wallets.
             </p>
           </div>
-          <span className="flex items-center gap-1 text-[11px] font-mono font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
-            <ShieldCheck size={13} className="text-emerald-500" />
-            256-BIT ENCRYPTED
+          <span className="flex items-center gap-1 text-[11px] font-mono font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
+            <Sparkles size={13} className="text-amber-500" />
+            RAZORPAY TEST SANDBOX
           </span>
+        </div>
+
+        {/* Sandbox Test Mode Helper Banner */}
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-xs space-y-2">
+          <div className="flex items-center gap-2 font-bold text-amber-500">
+            <AlertCircle size={15} />
+            <span>How to complete payments in Razorpay Test Mode:</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-slate-700 font-medium">
+            <div className="bg-white p-2.5 rounded-lg border border-amber-200/60">
+              <p className="font-bold text-slate-850 mb-0.5">💳 Test Card:</p>
+              <p className="font-mono text-[11px] text-slate-600">Card: 4111 1111 1111 1111</p>
+              <p className="font-mono text-[11px] text-slate-600">Exp: 12/28 | CVV: 123</p>
+            </div>
+            <div className="bg-white p-2.5 rounded-lg border border-amber-200/60">
+              <p className="font-bold text-slate-850 mb-0.5">📱 Test UPI:</p>
+              <p className="font-mono text-[11px] text-slate-600">Enter: test@razorpay</p>
+              <p className="text-[10px] text-amber-700 mt-0.5">(Do not scan with real GPay phone app)</p>
+            </div>
+            <div className="bg-white p-2.5 rounded-lg border border-amber-200/60">
+              <p className="font-bold text-slate-850 mb-0.5">🏦 Test NetBanking:</p>
+              <p className="text-[11px] text-slate-600">Select any bank (SBI / HDFC)</p>
+              <p className="text-[10px] text-emerald-700 font-bold mt-0.5">Click "Success" on simulation screen</p>
+            </div>
+          </div>
         </div>
 
         {/* Pricing Cards Grid */}
