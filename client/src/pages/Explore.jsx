@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import api from '../lib/api'
 import {
-  ChevronRight, Clock, Globe, Code, Cpu, Database, Bookmark, ArrowRight, ShieldCheck
+  ChevronRight, Clock, Globe, Code, Cpu, Database, Bookmark,
+  ArrowRight, ShieldCheck, CreditCard, Sparkles, AlertCircle,
+  CheckCircle2, Terminal
 } from 'lucide-react'
 
 const ICON_MAP = {
+  'Web Development': Globe,
   'Web Development Fundamentals': Globe,
   'React & Modern Frontend': Code,
   'Node.js & REST APIs': Database,
@@ -13,6 +16,7 @@ const ICON_MAP = {
 }
 
 const COLOR_MAP = {
+  'Web Development': '#3895D2',
   'Web Development Fundamentals': '#3895D2',
   'React & Modern Frontend': '#E8A33D',
   'Node.js & REST APIs': '#4FB286',
@@ -30,169 +34,249 @@ export default function Explore() {
   const [courses, setCourses] = useState([])
   const [enrolledIds, setEnrolledIds] = useState([])
   const [activeCourseId, setActiveCourseId] = useState(null)
+  const [creditsBalance, setCreditsBalance] = useState(0)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(null)
+  const [toast, setToast] = useState({ msg: '', isErr: false })
+
+  const showToast = (msg, isErr = false) => {
+    setToast({ msg, isErr })
+    setTimeout(() => setToast({ msg: '', isErr: false }), 4000)
+  }
 
   useEffect(() => {
-    async function load() {
-      try {
-        const [allRes, listRes, activeRes] = await Promise.all([
-          api.get('/courses'),
-          api.get('/courses/enrolled-list'),
-          api.get('/courses/enrolled'),
-        ])
-        setCourses(allRes.data || [])
-        setEnrolledIds((listRes.data || []).map(e => e.courseId))
-        setActiveCourseId(activeRes.data?._id || null)
-      } catch (err) {
-        console.error('Failed to load courses:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
+    loadData()
   }, [])
 
-  const handleAction = async (courseId, isEnrolled) => {
-    setSubmitting(courseId)
+  async function loadData() {
+    try {
+      const [allRes, listRes, activeRes, balanceRes] = await Promise.all([
+        api.get('/courses'),
+        api.get('/courses/enrolled-list'),
+        api.get('/courses/enrolled'),
+        api.get('/credits/balance'),
+      ])
+      setCourses(allRes.data || [])
+      setEnrolledIds((listRes.data || []).map(e => e.courseId))
+      setActiveCourseId(activeRes.data?._id || null)
+      setCreditsBalance(balanceRes.data?.balance || 0)
+    } catch (err) {
+      console.error('Failed to load courses:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAction = async (course, isEnrolled) => {
+    setSubmitting(course._id)
     try {
       if (isEnrolled) {
-        await api.post(`/courses/${courseId}/activate`)
+        await api.post(`/courses/${course._id}/activate`)
+        navigate('/dashboard')
       } else {
-        await api.post(`/courses/${courseId}/enroll`)
+        const cost = Number(course.creditsCost || 0)
+        if (cost > 0 && creditsBalance < cost) {
+          showToast(`Insufficient credits! You need ${cost} DigiCredits (you have ${creditsBalance}). Earn more in Practice Lab!`, true)
+          setSubmitting(null)
+          return
+        }
+
+        const res = await api.post(`/courses/${course._id}/enroll`)
+        showToast(res.data?.message || 'Course unlocked successfully!')
+        if (res.data?.creditsBalance !== undefined) {
+          setCreditsBalance(res.data.creditsBalance)
+        }
+        await loadData()
       }
-      navigate('/dashboard')
     } catch (err) {
-      alert(err.response?.data?.message || 'Action failed.')
+      showToast(err.response?.data?.message || 'Action failed.', true)
     } finally {
       setSubmitting(null)
     }
   }
 
   if (loading) return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
-      {[1,2,3,4].map(i => <div key={i} className="h-64 rounded-md bg-white border border-slate-200 shimmer" />)}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl">
+      {[1, 2, 3, 4].map(i => <div key={i} className="h-64 rounded-xl bg-slate-800/40 border border-slate-800 shimmer animate-pulse" />)}
     </div>
   )
 
   return (
-    <div className="page-enter">
-      {/* Header Info */}
-      <div className="mb-8">
-        <p className="font-mono text-[10px] text-[#EA4532] uppercase tracking-widest mb-1.5 font-bold">COURSE CATALOG</p>
-        <p className="text-slate-600 text-sm md:text-base max-w-2xl leading-relaxed">
-          Select a specialized track. Once enrolled, the curriculum structure, exercises, and quizzes will map instantly to your learning command center.
-        </p>
+    <div className="page-enter max-w-6xl space-y-8 pb-16">
+      {/* Toast Alert */}
+      {toast.msg && (
+        <div className={`fixed bottom-6 right-6 z-50 px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 animate-fade-in text-sm font-medium border ${
+          toast.isErr ? 'bg-[#0F172A] text-rose-400 border-rose-500/30' : 'bg-[#0F172A] text-emerald-400 border-emerald-500/30'
+        }`}>
+          {toast.isErr ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
+          <span>{toast.msg}</span>
+        </div>
+      )}
+
+      {/* Header Info with Live Credits Wallet */}
+      <div className="bg-[#0F172A] border border-slate-800 rounded-2xl p-6 md:p-8 text-white relative overflow-hidden shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-[#3895D2]/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 text-xs font-mono tracking-widest text-[#3895D2] font-bold uppercase mb-2">
+            <Sparkles size={14} />
+            <span>COURSE CATALOG & CREDIT STORE</span>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-black font-heading tracking-tight text-white">
+            Explore Specialized Tracks
+          </h1>
+          <p className="text-slate-400 text-xs md:text-sm mt-1 max-w-2xl">
+            Use your earned DigiCredits to unlock professional full-stack, AI, and cloud computing tracks.
+          </p>
+        </div>
+
+        {/* Live Credits Balance Tag */}
+        <div className="relative z-10 bg-[#1E293B] border border-slate-700 rounded-xl p-4 flex items-center gap-4 flex-shrink-0">
+          <div className="w-10 h-10 rounded-lg bg-[#3895D2]/20 border border-[#3895D2]/40 flex items-center justify-center text-[#3895D2]">
+            <CreditCard size={20} />
+          </div>
+          <div>
+            <p className="text-[10px] font-mono uppercase text-slate-400 font-bold">Your Available Credits</p>
+            <p className="font-mono text-xl font-black text-white">
+              {creditsBalance} <span className="text-xs text-[#3895D2]">CREDITS</span>
+            </p>
+          </div>
+          <Link
+            to="/code-arena"
+            className="text-[11px] font-mono font-bold text-[#4FB286] bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+          >
+            <Terminal size={12} />
+            <span>Earn +</span>
+          </Link>
+        </div>
       </div>
 
-      {/* Course Catalog Grid (Premium Next-Level Layout Cards) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl">
+      {/* Course Catalog Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {courses.map((course) => {
           const Icon = ICON_MAP[course.title] || Globe
           const color = COLOR_MAP[course.title] || '#3895D2'
           const isEnrolled = enrolledIds.includes(course._id)
           const isActive = activeCourseId === course._id
+          const cost = Number(course.creditsCost !== undefined ? course.creditsCost : 50)
 
           return (
             <div
               key={course._id}
-              className={`bg-white border rounded-xl overflow-hidden shadow-xs hover:shadow-md hover:-translate-y-1.5 transform transition-all duration-300 flex flex-col justify-between border-l-4 relative group`}
-              style={{ borderLeftColor: color, borderColor: isActive ? '#EA4532' : '#E2E8F0' }}
+              className={`bg-[#0F172A] border rounded-2xl overflow-hidden shadow-sm hover:border-slate-700 hover:-translate-y-1 transform transition-all duration-300 flex flex-col justify-between border-l-4 relative group`}
+              style={{ borderLeftColor: color, borderColor: isActive ? '#EA4532' : '#1E293B' }}
             >
-              
               {/* Header status bar tags */}
-              <div className="absolute top-4 right-4 flex items-center gap-1.5 z-10">
+              <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+                {/* Credits Cost Pill */}
+                <span className={`px-2.5 py-1 rounded-full font-mono text-[10px] font-bold uppercase border flex items-center gap-1 ${
+                  cost === 0
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                    : 'bg-[#3895D2]/10 text-[#3895D2] border-[#3895D2]/30'
+                }`}>
+                  <CreditCard size={11} />
+                  <span>{cost === 0 ? 'FREE STARTER' : `${cost} CREDITS`}</span>
+                </span>
+
                 {isActive ? (
-                  <span className="flex items-center gap-1 bg-[#EA4532]/10 border border-[#EA4532]/25 rounded-full px-2.5 py-0.5 text-[#EA4532] font-mono text-[9px] uppercase font-bold tracking-wider">
+                  <span className="flex items-center gap-1 bg-[#EA4532]/10 border border-[#EA4532]/25 rounded-full px-2.5 py-1 text-[#EA4532] font-mono text-[10px] uppercase font-bold tracking-wider">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#EA4532] animate-pulse" />
                     Active Track
                   </span>
                 ) : isEnrolled ? (
-                  <span className="flex items-center gap-1 bg-[#3895D2]/10 border border-[#3895D2]/25 rounded-full px-2.5 py-0.5 text-[#3895D2] font-mono text-[9px] uppercase font-bold tracking-wider">
-                    <Bookmark size={10} fill="currentColor" />
-                    Enrolled
+                  <span className="flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/25 rounded-full px-2.5 py-1 text-emerald-400 font-mono text-[10px] uppercase font-bold tracking-wider">
+                    <Bookmark size={11} fill="currentColor" />
+                    Unlocked
                   </span>
                 ) : null}
               </div>
 
               {/* Card Body */}
               <div className="p-6">
-                
-                {/* Course Icon Badge wrapper (glowing background matching brand color) */}
                 <div 
-                  className="w-12 h-12 rounded-lg flex items-center justify-center mb-5 border transition-transform duration-300 group-hover:scale-105"
+                  className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 border transition-transform duration-300 group-hover:scale-105"
                   style={{ 
-                    borderColor: `${color}25`, 
-                    backgroundColor: `${color}08`,
-                    boxShadow: `0 0 12px ${color}10` 
+                    borderColor: `${color}30`, 
+                    backgroundColor: `${color}15`,
                   }}
                 >
                   <Icon size={20} strokeWidth={1.5} style={{ color }} />
                 </div>
 
-                <h3 className="font-heading font-bold text-slate-850 text-base md:text-lg mb-2.5 pr-20 group-hover:text-slate-900 transition-colors">
-                  {course.title}
-                </h3>
-                <p className="text-slate-550 text-xs md:text-sm leading-relaxed mb-6 font-medium">
-                  {course.description}
-                </p>
-              </div>
-
-              {/* Card Footer Details & Actions */}
-              <div className="px-6 pb-6 pt-4 border-t border-slate-50 bg-slate-50/50 flex flex-col justify-end">
-                <div className="flex items-center justify-between mb-5">
-                  <div className="flex items-center gap-2 text-slate-500 font-mono text-xs font-semibold">
-                    <Clock size={13} strokeWidth={1.5} className="text-slate-400" />
-                    <span>{course.estimatedHours || 10} hours estimated</span>
-                  </div>
-                  
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[10px] font-mono font-bold uppercase text-slate-400 px-2 py-0.5 rounded bg-white/5 border border-white/10">
+                    {course.category || 'General'}
+                  </span>
                   <span 
-                    className="font-mono text-[9px] font-bold px-2 py-0.5 rounded border tracking-wider"
+                    className="font-mono text-[10px] font-bold px-2 py-0.5 rounded border"
                     style={{
-                      color: DIFFICULTY_COLORS[course.difficulty],
-                      borderColor: `${DIFFICULTY_COLORS[course.difficulty]}30`,
-                      backgroundColor: `${DIFFICULTY_COLORS[course.difficulty]}10`,
+                      color: DIFFICULTY_COLORS[course.difficulty] || '#4FB286',
+                      borderColor: `${DIFFICULTY_COLORS[course.difficulty] || '#4FB286'}30`,
+                      backgroundColor: `${DIFFICULTY_COLORS[course.difficulty] || '#4FB286'}10`,
                     }}
                   >
                     {course.difficulty?.toUpperCase()}
                   </span>
                 </div>
 
+                <h3 className="font-heading font-bold text-white text-lg mb-2 group-hover:text-[#3895D2] transition-colors pr-24">
+                  {course.title}
+                </h3>
+                <p className="text-slate-400 text-xs leading-relaxed line-clamp-3">
+                  {course.description}
+                </p>
+              </div>
+
+              {/* Card Footer */}
+              <div className="px-6 pb-6 pt-4 border-t border-slate-800/80 bg-[#0B0F19]/60 flex flex-col justify-end space-y-4">
+                <div className="flex items-center justify-between text-slate-500 font-mono text-xs font-semibold">
+                  <div className="flex items-center gap-1.5">
+                    <Clock size={13} className="text-slate-400" />
+                    <span>{course.estimatedHours || 10} hours estimated</span>
+                  </div>
+                  {isEnrolled ? (
+                    <span className="text-emerald-400 text-[11px] font-bold">✓ Ready in Dashboard</span>
+                  ) : (
+                    <span className="text-slate-400 text-[11px]">Requires {cost} credits</span>
+                  )}
+                </div>
+
                 {isActive ? (
                   <button 
                     onClick={() => navigate('/dashboard')}
-                    className="w-full bg-[#3895D2] hover:bg-[#2c7db5] text-white py-2.5 rounded-lg text-xs font-bold transition-all shadow-3xs flex items-center justify-center gap-2 group/btn"
+                    className="w-full bg-[#3895D2] hover:bg-[#3895D2]/90 text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
                   >
-                    Study Active Track
-                    <ArrowRight size={13} strokeWidth={2} className="group-hover/btn:translate-x-1 transition-transform" />
+                    <span>Study Active Track</span>
+                    <ArrowRight size={14} />
+                  </button>
+                ) : isEnrolled ? (
+                  <button
+                    onClick={() => handleAction(course, true)}
+                    disabled={submitting !== null}
+                    className="w-full bg-[#1E293B] hover:bg-slate-700 text-white border border-slate-700 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
+                  >
+                    <span>Switch to Active Track</span>
+                    <ArrowRight size={14} />
                   </button>
                 ) : (
                   <button
-                    onClick={() => handleAction(course._id, isEnrolled)}
+                    onClick={() => handleAction(course, false)}
                     disabled={submitting !== null}
-                    className={`w-full py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-3xs ${
-                      isEnrolled
-                        ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 hover:border-slate-350'
-                        : 'bg-[#3895D2] hover:bg-[#2c7db5] text-white'
-                    }`}
+                    className="w-full bg-[#EA4532] hover:bg-[#EA4532]/90 text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     {submitting === course._id ? (
                       'Processing...'
-                    ) : isEnrolled ? (
+                    ) : cost === 0 ? (
                       <>
-                        <ShieldCheck size={13} />
-                        Activate & Study Track
+                        <span>Enroll Free →</span>
                       </>
                     ) : (
                       <>
-                        Enroll in Track
-                        <ChevronRight size={13} />
+                        <span>Unlock for {cost} Credits →</span>
                       </>
                     )}
                   </button>
                 )}
               </div>
-
             </div>
           )
         })}

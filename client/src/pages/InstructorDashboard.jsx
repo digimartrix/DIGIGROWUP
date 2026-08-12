@@ -19,7 +19,8 @@ export default function InstructorDashboard() {
     description: '',
     category: 'Web Development',
     difficulty: 'Beginner',
-    estimatedHours: 8
+    estimatedHours: 8,
+    creditsCost: 50,
   })
 
   // Selected course for curriculum builder
@@ -608,7 +609,7 @@ export default function InstructorDashboard() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-xs font-mono uppercase font-bold text-slate-300 mb-1.5">Category</label>
                   <select
@@ -644,6 +645,18 @@ export default function InstructorDashboard() {
                     min="1"
                     value={newCourse.estimatedHours}
                     onChange={(e) => setNewCourse({ ...newCourse, estimatedHours: Number(e.target.value) })}
+                    className="w-full bg-[#1E293B] border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#3895D2]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono uppercase font-bold text-slate-300 mb-1.5">Credits Cost</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="50 (0 = Free)"
+                    value={newCourse.creditsCost}
+                    onChange={(e) => setNewCourse({ ...newCourse, creditsCost: Number(e.target.value) })}
                     className="w-full bg-[#1E293B] border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#3895D2]"
                   />
                 </div>

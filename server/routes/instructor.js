@@ -45,7 +45,7 @@ router.get('/courses', async (req, res, next) => {
 // POST /api/instructor/courses — create a new course
 router.post('/courses', async (req, res, next) => {
   try {
-    const { title, description, category, difficulty, estimatedHours } = req.body;
+    const { title, description, category, difficulty, estimatedHours, creditsCost } = req.body;
     if (!title || !description) return res.status(400).json({ message: 'Title and description are required.' });
 
     const course = await Course.create({
@@ -54,10 +54,11 @@ router.post('/courses', async (req, res, next) => {
       category: category || 'General',
       difficulty: difficulty || 'Beginner',
       estimatedHours: estimatedHours || 0,
+      creditsCost: creditsCost !== undefined ? Number(creditsCost) : 50,
       createdBy: req.user.id,
     });
 
-    await logActivity(req.user, 'COURSE_CREATED', title);
+    await logActivity(req.user, 'COURSE_CREATED', title, { creditsCost: course.creditsCost });
     res.status(201).json(course);
   } catch (err) { next(err); }
 });

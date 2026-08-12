@@ -5,6 +5,7 @@ import Lesson from '../models/Lesson.js';
 import Quiz from '../models/Quiz.js';
 import Enrollment from '../models/Enrollment.js';
 import User from '../models/User.js';
+import CreditTransaction from '../models/CreditTransaction.js';
 import ActivityLog from '../models/ActivityLog.js';
 import { protect } from '../middleware/auth.js';
 
@@ -65,30 +66,94 @@ router.get('/enrolled', protect, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/courses/:id/enroll — enroll in a new course and set it as active
+// POST /api/courses/:id/enroll — enroll in a new course with DigiCredits validation
 router.post('/:id/enroll', protect, async (req, res, next) => {
   try {
     const courseId = req.params.id;
     const courseExists = await Course.findById(courseId);
     if (!courseExists) return res.status(404).json({ message: 'Course not found.' });
 
-    // Find or create enrollment
-    let enrollment = await Enrollment.findOne({ userId: req.user.id, courseId });
-    if (!enrollment) {
-      enrollment = await Enrollment.create({
-        userId: req.user.id,
-        courseId,
-        completedLessons: []
-      });
+    // Check if already enrolled
+    let existingEnrollment = await Enrollment.findOne({ userId: req.user.id, courseId });
+    if (existingEnrollment) {
+      await User.findByIdAndUpdate(req.user.id, { activeCourseId: courseId });
+      return res.json({ message: 'Course is already in your learning center.', courseId, alreadyEnrolled: true });
     }
 
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User account not found.' });
+
+    const cost = Number(courseExists.creditsCost || 0);
+
+    // Validate DigiCredits balance if course is not free
+    if (cost > 0) {
+      if ((user.creditsBalance || 0) < cost) {
+        return res.status(400).json({
+          message: `Insufficient DigiCredits! You have ${user.creditsBalance || 0} credits, but this course requires ${cost} credits. Complete challenges in Code Arena or quizzes to earn more!`,
+          requiredCredits: cost,
+          currentBalance: user.creditsBalance || 0
+        });
+      }
+
+      // Deduct credits
+      user.creditsBalance -= cost;
+      await user.save();
+
+      // Record SPEND transaction
+      await CreditTransaction.create({
+        userId: user._id,
+        type: 'SPEND',
+        amount: cost,
+        reason: `Enrolled in Course: ${courseExists.title}`,
+        referenceId: courseExists._id,
+      });
+
+      // If course was authored by an instructor/mentor, credit them with royalties
+      if (courseExists.createdBy && String(courseExists.createdBy) !== String(user._id)) {
+        const royaltyAmount = Math.round(cost * 0.8);
+        const author = await User.findById(courseExists.createdBy);
+        if (author) {
+          author.creditsBalance = (author.creditsBalance || 0) + royaltyAmount;
+          await author.save();
+
+          await CreditTransaction.create({
+            userId: author._id,
+            type: 'EARN',
+            amount: royaltyAmount,
+            reason: `Course Royalty: Learner enrolled in "${courseExists.title}"`,
+            referenceId: courseExists._id,
+          });
+        }
+      }
+    }
+
+    // Create enrollment
+    await Enrollment.create({
+      userId: user._id,
+      courseId,
+      completedLessons: []
+    });
+
     // Set as active course
-    await User.findByIdAndUpdate(req.user.id, { activeCourseId: courseId });
+    user.activeCourseId = courseId;
+    await user.save();
 
-    // Log enrollment
-    ActivityLog.create({ userId: req.user.id, userName: req.user.name, userRole: req.user.role, action: 'COURSE_ENROLLED', target: courseExists.title }).catch(() => {});
+    // Log enrollment event
+    ActivityLog.create({
+      userId: user._id,
+      userName: user.name,
+      userRole: user.role,
+      action: 'COURSE_ENROLLED',
+      target: courseExists.title,
+      metadata: { creditsCost: cost, remainingBalance: user.creditsBalance }
+    }).catch(() => {});
 
-    res.json({ message: 'Enrolled successfully.', courseId });
+    res.json({
+      success: true,
+      message: cost > 0 ? `Successfully unlocked "${courseExists.title}" for ${cost} DigiCredits!` : `Enrolled in "${courseExists.title}"!`,
+      courseId,
+      creditsBalance: user.creditsBalance
+    });
   } catch (err) { next(err); }
 });
 
