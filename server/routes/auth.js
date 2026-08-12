@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { rateLimit } from 'express-rate-limit';
 import { body, validationResult } from 'express-validator';
 import User from '../models/User.js';
+import ActivityLog from '../models/ActivityLog.js';
 import Course from '../models/Course.js';
 import Enrollment from '../models/Enrollment.js';
 import { protect } from '../middleware/auth.js';
@@ -54,6 +55,10 @@ router.post(
       }
 
       const token = signToken(user);
+
+      // Log registration
+      ActivityLog.create({ userId: user._id, userName: user.name, userRole: user.role, action: 'USER_REGISTERED', target: user.name }).catch(() => {});
+
       res.status(201).json({
         token,
         user: { id: user._id, name: user.name, email: user.email, role: user.role },
@@ -93,6 +98,10 @@ router.post(
       }
 
       const token = signToken(user);
+
+      // Log login
+      ActivityLog.create({ userId: user._id, userName: user.name, userRole: user.role, action: 'USER_LOGGED_IN', target: user.name }).catch(() => {});
+
       res.json({
         token,
         user: { id: user._id, name: user.name, email: user.email, role: user.role },

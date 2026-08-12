@@ -5,6 +5,7 @@ import Lesson from '../models/Lesson.js';
 import Quiz from '../models/Quiz.js';
 import Enrollment from '../models/Enrollment.js';
 import User from '../models/User.js';
+import ActivityLog from '../models/ActivityLog.js';
 import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -83,6 +84,9 @@ router.post('/:id/enroll', protect, async (req, res, next) => {
 
     // Set as active course
     await User.findByIdAndUpdate(req.user.id, { activeCourseId: courseId });
+
+    // Log enrollment
+    ActivityLog.create({ userId: req.user.id, userName: req.user.name, userRole: req.user.role, action: 'COURSE_ENROLLED', target: courseExists.title }).catch(() => {});
 
     res.json({ message: 'Enrolled successfully.', courseId });
   } catch (err) { next(err); }

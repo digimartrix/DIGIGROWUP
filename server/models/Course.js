@@ -7,6 +7,7 @@ const courseSchema = new mongoose.Schema({
   difficulty: { type: String, enum: ['Beginner', 'Intermediate', 'Advanced'], default: 'Beginner' },
   estimatedHours: { type: Number, default: 10 },
   thumbnail: { type: String, default: '' },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
 }, { timestamps: true });
 
 export default mongoose.model('Course', courseSchema);

@@ -128,6 +128,24 @@ export default function Sidebar({ onOpenTutor }) {
             <Settings size={17} strokeWidth={1.5} className="text-white/60 group-hover:text-[#EA4532]" />
             <span className="font-body text-[13.5px]">Settings</span>
           </NavLink>
+          {/* Instructor Studio (Visible to Instructors & Admins) */}
+          {user && (user.role === 'instructor' || user.role === 'admin') && (
+            <NavLink
+              to="/instructor-dashboard"
+              className={({ isActive }) =>
+                `flex items-center gap-3.5 px-3 py-2.5 rounded text-sm font-bold transition-all duration-150 group border ${
+                  isActive ? 'bg-white/10 text-white border-white/10 border-l-4 border-l-[#E8A33D] shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/5 border-transparent'
+                }`
+              }
+            >
+              <BookOpen size={17} strokeWidth={1.5} className="text-white/60 group-hover:text-[#E8A33D]" />
+              <span className="font-body text-[13.5px]">Instructor Studio</span>
+              <span className="ml-auto text-[8px] font-mono text-amber-300 bg-amber-500/20 px-1.5 py-0.5 rounded uppercase font-bold">
+                PRO
+              </span>
+            </NavLink>
+          )}
+
           {/* Admin Dashboard Entry (Visible only to authenticated Administrators) */}
           {user && user.role === 'admin' && (
             <NavLink
@@ -140,6 +158,9 @@ export default function Sidebar({ onOpenTutor }) {
             >
               <ShieldCheck size={17} strokeWidth={1.5} className="text-white/60 group-hover:text-[#EA4532]" />
               <span className="font-body text-[13.5px]">Admin Dashboard</span>
+              <span className="ml-auto text-[8px] font-mono text-rose-300 bg-rose-500/20 px-1.5 py-0.5 rounded uppercase font-bold">
+                ADMIN
+              </span>
             </NavLink>
           )}
         </div>
@@ -155,7 +176,18 @@ export default function Sidebar({ onOpenTutor }) {
           </div>
           <div className="min-w-0">
             <p className="text-white text-xs font-bold truncate leading-none mb-1">{user?.name || 'Student'}</p>
-            <p className="text-white/40 font-mono" style={{ fontSize: '9px' }}>LEARNER ID</p>
+            <p className="text-white/40 font-mono flex items-center gap-1.5" style={{ fontSize: '9px' }}>
+              <span className={`px-1 py-0.2 rounded font-bold uppercase ${
+                user?.role === 'admin'
+                  ? 'text-[#EA4532] bg-[#EA4532]/20'
+                  : user?.role === 'instructor'
+                  ? 'text-[#E8A33D] bg-[#E8A33D]/20'
+                  : 'text-[#3895D2] bg-[#3895D2]/20'
+              }`}>
+                {user?.role || 'STUDENT'}
+              </span>
+              <span>ACCOUNT</span>
+            </p>
           </div>
         </div>
         <button

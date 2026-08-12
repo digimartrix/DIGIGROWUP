@@ -4,6 +4,7 @@ import QuizAttempt from '../models/QuizAttempt.js';
 import MasteryScore from '../models/MasteryScore.js';
 import Enrollment from '../models/Enrollment.js';
 import Lesson from '../models/Lesson.js';
+import ActivityLog from '../models/ActivityLog.js';
 import { protect } from '../middleware/auth.js';
 import { computeNextAction } from './mastery.js';
 
@@ -45,6 +46,9 @@ router.post('/:id/submit', protect, async (req, res, next) => {
 
     // Save attempt
     await QuizAttempt.create({ userId: req.user.id, quizId: quiz._id, answers, score });
+
+    // Log quiz submission
+    ActivityLog.create({ userId: req.user.id, userName: req.user.name, userRole: req.user.role, action: 'QUIZ_SUBMITTED', target: `Quiz (score: ${score}%)`, metadata: { quizId: quiz._id, score } }).catch(() => {});
 
     // Calculate per-topic quiz scores
     const topicMap = {};

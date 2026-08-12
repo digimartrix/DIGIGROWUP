@@ -24,6 +24,7 @@ import NotFound from './pages/NotFound'
 import MyLearning from './pages/MyLearning'
 import Community from './pages/Community'
 import AdminDashboard from './pages/AdminDashboard'
+import InstructorDashboard from './pages/InstructorDashboard'
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth()
@@ -74,6 +75,7 @@ export default function App() {
             <Route path="/my-learning" element={<MyLearning />} />
             <Route path="/community" element={<Community />} />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
+            <Route path="/instructor-dashboard" element={<InstructorDashboard />} />
             
             <Route path="/lesson/:id" element={<Lesson />} />
             <Route path="/quiz/:id" element={<Quiz />} />

@@ -83,6 +83,7 @@ import notificationRoutes from './routes/notifications.js';
 import achievementRoutes from './routes/achievements.js';
 import projectRoutes from './routes/projects.js';
 import adminRoutes from './routes/admin.js';
+import instructorRoutes from './routes/instructor.js';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
@@ -101,6 +102,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/achievements', achievementRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/instructor', instructorRoutes);
 
 // Global error handler — never leaks stack traces to client
 app.use((err, req, res, next) => {
