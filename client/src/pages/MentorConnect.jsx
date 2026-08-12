@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import {
   Star, Calendar, X, ExternalLink, Users, Briefcase,
-  Sparkles, CheckCircle2, ShieldCheck, MessageSquare,
-  ArrowRight, Video, Zap, Globe
+  CheckCircle2, Clock, Globe, ArrowRight, MessageSquare,
+  ShieldCheck, Sparkles
 } from 'lucide-react'
 
 const MENTORS = [
@@ -77,7 +77,7 @@ export default function MentorConnect() {
       setBookingMentor(null)
       setBooked(false)
       setSelectedSlot('')
-      setToastMsg(`📅 Session booked with ${bookingMentor.name}! Link sent to your notifications.`)
+      setToastMsg(`📅 Session booked with ${bookingMentor.name}! Details sent to your notifications.`)
       setTimeout(() => setToastMsg(''), 5000)
     }, 1200)
   }
@@ -96,32 +96,26 @@ export default function MentorConnect() {
         </div>
       )}
 
-      {/* TWINCONNECT OFFICIAL INTEGRATION HERO BANNER */}
-      <div className="bg-[#0F172A] border border-slate-800 rounded-3xl p-6 md:p-8 text-white relative overflow-hidden shadow-2xl">
-        <div className="absolute -right-10 -bottom-10 w-80 h-80 bg-[#3895D2]/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute top-0 right-1/4 w-48 h-48 bg-[#EA4532]/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+      {/* TWINCONNECT INTEGRATION HERO (Clean DigiGrowUp Design) */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs relative overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
           <div className="space-y-4 max-w-2xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="flex items-center gap-1.5 text-[10px] font-mono tracking-widest text-[#3895D2] font-bold uppercase bg-[#3895D2]/10 border border-[#3895D2]/30 px-3 py-1 rounded-full">
-                <Sparkles size={13} />
-                <span>POWERED BY TWINCONNECT</span>
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1.5 text-[10px] font-mono tracking-widest text-[#3895D2] font-bold uppercase bg-[#3895D2]/10 border border-[#3895D2]/20 px-3 py-1 rounded-full">
+                <Globe size={13} />
+                <span>TWINCONNECT NETWORK</span>
               </span>
-              <span className="text-[10px] font-mono tracking-wider text-emerald-400 font-bold uppercase bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-full">
-                LIVE NETWORK
+              <span className="text-[10px] font-mono tracking-wider text-emerald-700 font-bold uppercase bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                VERIFIED MENTORS
               </span>
             </div>
 
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-black font-heading tracking-tight text-white leading-tight">
-              Connect with Mentors & Businesses via{' '}
-              <span className="bg-gradient-to-r from-[#3895D2] via-[#8B5CF6] to-[#EA4532] bg-clip-text text-transparent">
-                TwinConnect
-              </span>
+            <h1 className="text-2xl md:text-3xl font-black font-heading tracking-tight text-slate-900 leading-tight">
+              Connect with Mentors & Businesses via TwinConnect
             </h1>
 
-            <p className="text-slate-400 text-xs md:text-sm leading-relaxed">
-              DigiGrowUp is integrated directly with <strong className="text-white">TwinConnect</strong> — the dedicated real-time platform for student mentorship, technical mock interviews, and startup business connections.
+            <p className="text-slate-600 text-xs md:text-sm leading-relaxed font-medium">
+              DigiGrowUp connects you with <strong className="text-slate-900">TwinConnect</strong> — the dedicated real-time platform for student mentorship, technical mock interviews, and startup business connections.
             </p>
 
             {/* Feature Pills */}
@@ -130,35 +124,35 @@ export default function MentorConnect() {
                 '1-on-1 Architecture Reviews',
                 'Technical Mock Interviews',
                 'Startup & Business Matchmaking',
-                'Verified Industry Leads'
+                'Career & Resume Guidance'
               ].map((f) => (
-                <span key={f} className="text-[11px] font-mono text-slate-300 bg-[#1E293B] border border-slate-700/80 px-2.5 py-1 rounded-lg flex items-center gap-1.5">
-                  <CheckCircle2 size={12} className="text-[#3895D2]" />
+                <span key={f} className="text-[11px] font-medium text-slate-700 bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg flex items-center gap-1.5">
+                  <CheckCircle2 size={13} className="text-[#3895D2]" />
                   {f}
                 </span>
               ))}
             </div>
           </div>
 
-          {/* Primary Action Card */}
-          <div className="bg-[#1E293B]/80 border border-slate-700/80 rounded-2xl p-6 flex flex-col justify-between gap-4 flex-shrink-0 lg:w-80 shadow-lg backdrop-blur-sm">
+          {/* TwinConnect Launch Card */}
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 flex flex-col justify-between gap-4 flex-shrink-0 lg:w-80 shadow-xs">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#3895D2] to-[#8B5CF6] flex items-center justify-center text-white shadow-md">
+              <div className="w-10 h-10 rounded-xl bg-[#3895D2] flex items-center justify-center text-white shadow-xs">
                 <Globe size={20} />
               </div>
               <div>
-                <p className="text-xs font-mono font-bold text-slate-400 uppercase">External Portal</p>
-                <h4 className="text-sm font-bold text-white">twin-connect-app</h4>
+                <p className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">EXTERNAL PLATFORM</p>
+                <h4 className="text-sm font-bold text-slate-850">TwinConnect App</h4>
               </div>
             </div>
 
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Access the complete TwinConnect network to find mentors in specialized domains or pitch your project to business partners.
+            <p className="text-xs text-slate-600 leading-relaxed font-medium">
+              Access the complete TwinConnect network to find specialized mentors or connect directly with business partners.
             </p>
 
             <button
               onClick={openTwinConnect}
-              className="w-full bg-gradient-to-r from-[#3895D2] to-[#2563EB] hover:from-[#2c7db5] hover:to-[#1d4ed8] text-white py-3 rounded-xl text-xs font-bold font-heading shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 group"
+              className="w-full bg-[#3895D2] hover:bg-[#2c7db5] text-white py-3 rounded-xl text-xs font-bold font-heading shadow-xs hover:shadow-md transition-all flex items-center justify-center gap-2 group"
             >
               <span>Launch TwinConnect Platform</span>
               <ExternalLink size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
@@ -168,9 +162,9 @@ export default function MentorConnect() {
               href="https://twin-connect-app.vercel.app/"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[10px] font-mono text-slate-500 hover:text-[#3895D2] text-center truncate underline transition-colors"
+              className="text-[11px] font-mono text-[#3895D2] hover:underline text-center truncate font-bold"
             >
-              https://twin-connect-app.vercel.app/
+              twin-connect-app.vercel.app ↗
             </a>
           </div>
         </div>
@@ -185,14 +179,14 @@ export default function MentorConnect() {
               <span>Featured Industry Mentors</span>
             </h2>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Book live coaching sessions or connect directly on the TwinConnect platform.
+              Book coaching sessions or connect directly on the TwinConnect platform.
             </p>
           </div>
           <button
             onClick={openTwinConnect}
-            className="flex items-center gap-1 text-xs font-mono font-bold text-[#3895D2] hover:text-[#2563EB] transition-colors"
+            className="flex items-center gap-1 text-xs font-mono font-bold text-[#3895D2] hover:text-[#2c7db5] transition-colors"
           >
-            <span>Explore All on TwinConnect</span>
+            <span>Explore on TwinConnect</span>
             <ExternalLink size={13} />
           </button>
         </div>
@@ -202,8 +196,7 @@ export default function MentorConnect() {
           {MENTORS.map((m) => (
             <div
               key={m.id}
-              className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs hover:shadow-xl hover:-translate-y-1 transform transition-all duration-300 flex flex-col justify-between border-l-4 relative group"
-              style={{ borderLeftColor: m.color }}
+              className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col justify-between"
             >
               <div>
                 {/* Mentor Header */}
@@ -222,7 +215,7 @@ export default function MentorConnect() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md flex-shrink-0">
+                  <div className="flex items-center gap-1 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md flex-shrink-0">
                     <Star size={13} className="text-amber-500 fill-amber-500" />
                     <span className="font-mono text-xs font-bold text-slate-800">{m.rating}</span>
                   </div>
@@ -268,23 +261,23 @@ export default function MentorConnect() {
       </div>
 
       {/* BUSINESS & VENTURE NETWORKING CALLOUT */}
-      <div className="bg-gradient-to-r from-[#1E293B] to-[#0F172A] border border-slate-800 rounded-2xl p-6 md:p-8 text-white flex flex-col sm:flex-row items-center justify-between gap-6">
-        <div className="space-y-1 max-w-xl">
+      <div className="bg-slate-900 text-white rounded-2xl p-6 md:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm">
+        <div className="space-y-1.5 max-w-xl">
           <div className="flex items-center gap-2 text-xs font-mono text-[#4FB286] font-bold uppercase">
             <Briefcase size={14} />
             <span>BUSINESS & HIRING PARTNERS</span>
           </div>
           <h3 className="text-lg md:text-xl font-bold font-heading text-white">
-            Looking to recruit verified student developers or find startup co-founders?
+            Looking to recruit verified student developers or collaborate?
           </h3>
-          <p className="text-slate-400 text-xs leading-relaxed">
-            Businesses and engineering managers can browse top-ranking project portfolios and hire directly through TwinConnect.
+          <p className="text-slate-300 text-xs leading-relaxed font-medium">
+            Businesses and engineering managers can discover talent, review live portfolios, and connect with candidates through TwinConnect.
           </p>
         </div>
 
         <button
           onClick={openTwinConnect}
-          className="bg-[#4FB286] hover:bg-[#4FB286]/90 text-white text-xs font-bold px-5 py-3 rounded-xl transition-all shadow-md flex items-center gap-2 flex-shrink-0"
+          className="bg-[#4FB286] hover:bg-[#4FB286]/90 text-white text-xs font-bold px-5 py-3 rounded-xl transition-all shadow-sm flex items-center gap-2 flex-shrink-0"
         >
           <span>Connect as a Business</span>
           <ArrowRight size={14} />
@@ -293,22 +286,22 @@ export default function MentorConnect() {
 
       {/* BOOKING MODAL */}
       {bookingMentor && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#0F172A] border border-slate-800 rounded-2xl max-w-md w-full p-6 relative page-enter shadow-2xl text-white space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 relative page-enter shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <span className="text-[10px] font-mono uppercase font-bold text-[#3895D2]">Schedule Mentorship</span>
-                <h3 className="font-heading font-bold text-white text-base">Session with {bookingMentor.name}</h3>
+                <h3 className="font-heading font-bold text-slate-850 text-base">Session with {bookingMentor.name}</h3>
               </div>
               <button
                 onClick={() => setBookingMentor(null)}
-                className="text-slate-400 hover:text-white rounded-lg p-1"
+                className="text-slate-400 hover:text-slate-700 rounded-lg p-1"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <p className="text-slate-400 text-xs">
+            <p className="text-slate-600 text-xs font-medium">
               Select an available time slot for your 1-on-1 technical discussion:
             </p>
 
@@ -319,8 +312,8 @@ export default function MentorConnect() {
                   onClick={() => setSelectedSlot(s)}
                   className={`w-full text-left p-3 rounded-xl border text-xs font-bold font-mono transition-all flex items-center justify-between ${
                     selectedSlot === s
-                      ? 'border-[#3895D2] bg-[#3895D2]/15 text-[#3895D2] ring-1 ring-[#3895D2]/40'
-                      : 'border-slate-700/80 bg-[#1E293B] text-slate-300 hover:border-slate-600'
+                      ? 'border-[#3895D2] bg-[#3895D2]/10 text-[#3895D2] ring-1 ring-[#3895D2]/30'
+                      : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300'
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -332,12 +325,12 @@ export default function MentorConnect() {
               ))}
             </div>
 
-            <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-3">
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
               <a
                 href={bookingMentor.twinConnectUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs font-mono text-slate-400 hover:text-[#3895D2] flex items-center gap-1"
+                className="text-xs font-mono text-slate-500 hover:text-[#3895D2] flex items-center gap-1 font-medium"
               >
                 <span>Or use TwinConnect</span>
                 <ExternalLink size={12} />
@@ -346,7 +339,7 @@ export default function MentorConnect() {
               <button
                 onClick={handleBook}
                 disabled={!selectedSlot || booked}
-                className="bg-[#3895D2] hover:bg-[#3895D2]/90 disabled:opacity-50 text-white font-bold py-2.5 px-5 rounded-xl text-xs transition-colors flex items-center gap-2 shadow-lg"
+                className="bg-[#3895D2] hover:bg-[#2c7db5] disabled:opacity-50 text-white font-bold py-2.5 px-5 rounded-xl text-xs transition-colors flex items-center gap-2 shadow-xs"
               >
                 {booked ? 'Scheduling...' : 'Confirm Booking'}
               </button>

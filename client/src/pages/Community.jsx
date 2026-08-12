@@ -122,23 +122,59 @@ export default function Community() {
   }
 
   return (
-    <div className="page-enter max-w-4xl">
+    <div className="page-enter max-w-4xl space-y-6">
       {/* Header Info */}
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <p className="font-mono text-[10px] text-[#EA4532] uppercase tracking-widest mb-1.5 font-bold">DIGICOMMUNITY</p>
-          <p className="text-slate-500 text-xs md:text-sm">
-            Discuss topics, share programming tasks, and participate in peer discussions in real-time.
+          <h1 className="text-2xl font-black font-heading tracking-tight text-slate-850">
+            Learner Discussions & Forums
+          </h1>
+          <p className="text-slate-500 text-xs md:text-sm mt-0.5">
+            Discuss topics, share programming tasks, and collaborate with peers and mentors in real-time.
           </p>
         </div>
 
         <button
           onClick={() => setShowCreate(true)}
-          className="self-start sm:self-center flex items-center gap-1.5 px-4 py-2.5 bg-[#3895D2] hover:bg-[#2c7db5] text-white rounded-lg text-xs font-bold transition-all shadow-3xs"
+          className="self-start sm:self-center flex items-center gap-1.5 px-4 py-2.5 bg-[#3895D2] hover:bg-[#2c7db5] text-white rounded-xl text-xs font-bold transition-all shadow-xs"
         >
           <Plus size={14} />
-          Create Discussion
+          <span>New Discussion</span>
         </button>
+      </div>
+
+      {/* OFFICIAL WHATSAPP COMMUNITY BANNER */}
+      <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-5 md:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-[#25D366] text-white flex items-center justify-center flex-shrink-0 shadow-xs">
+            <MessageSquare size={24} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100/70 px-2 py-0.5 rounded">
+                OFFICIAL GROUP
+              </span>
+              <span className="text-[11px] font-mono text-emerald-600 font-semibold">1,200+ Members</span>
+            </div>
+            <h3 className="font-heading font-bold text-slate-850 text-base mt-0.5">
+              Join the DigiGrowUp WhatsApp Community
+            </h3>
+            <p className="text-slate-600 text-xs mt-0.5 font-medium">
+              Instant doubt solving, project collaboration, hackathons, and real-time live event links.
+            </p>
+          </div>
+        </div>
+
+        <a
+          href="https://chat.whatsapp.com/KEnB8p3DZpIH2GWnzAyY1R"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full sm:w-auto bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-bold font-heading px-5 py-3 rounded-xl transition-all shadow-xs hover:shadow-md flex items-center justify-center gap-2 flex-shrink-0"
+        >
+          <span>Join WhatsApp Group</span>
+          <span className="text-sm">↗</span>
+        </a>
       </div>
 
       {/* Category Pills Filters */}
