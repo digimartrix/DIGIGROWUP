@@ -95,18 +95,8 @@ export default function Layout() {
         
         {/* Common Shared Header (Aligned to matching h-[76px] height with black background) */}
         <header className="bg-[#0F172A] text-white h-[76px] px-6 flex items-center justify-between flex-shrink-0 z-10 shadow-md border-b border-slate-800">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg border border-white/15 flex items-center justify-center overflow-hidden flex-shrink-0 bg-white/5">
-                <img src="/favicon_circle.png" alt="Logo" className="w-full h-full object-contain p-0.5" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = '🎯'; }} />
-              </div>
-              <span className="font-heading font-black text-[13px] tracking-wide leading-none hidden md:block">
-                <span className="text-[#3895D2]">DIGI</span>
-                <span className="text-[#EA4532]">GROWUP</span>
-              </span>
-            </div>
-            <div className="h-5 w-px bg-white/15 hidden md:block" />
-            <h1 className="text-sm md:text-base font-heading font-bold text-white/80 tracking-tight uppercase">
+          <div className="flex items-center gap-3">
+            <h1 className="text-base md:text-lg font-heading font-black text-white tracking-wider uppercase">
               {pageTitle}
             </h1>
           </div>
