@@ -133,11 +133,21 @@ router.put('/profile', protect, async (req, res, next) => {
 
     // Re-sign token
     const token = signToken(user);
+// GET /api/auth/me - Get current user profile and role
+router.get('/me', protect, async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id).select('name email role creditsBalance activeCourseId');
+    if (!user) return res.status(404).json({ message: 'User not found.' });
     res.json({
       success: true,
-      message: 'Profile updated successfully.',
-      token,
-      user: { id: user._id, name: user.name, email: user.email, role: user.role }
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        creditsBalance: user.creditsBalance,
+        activeCourseId: user.activeCourseId
+      }
     });
   } catch (err) { next(err); }
 });

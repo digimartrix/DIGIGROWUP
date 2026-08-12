@@ -31,10 +31,11 @@ const DIFFICULTY_COLORS = {
 
 export default function Explore() {
   const navigate = useNavigate()
+  const { user, refreshUser } = useAuth()
   const [courses, setCourses] = useState([])
   const [enrolledIds, setEnrolledIds] = useState([])
   const [activeCourseId, setActiveCourseId] = useState(null)
-  const [creditsBalance, setCreditsBalance] = useState(0)
+  const [creditsBalance, setCreditsBalance] = useState(user?.creditsBalance || 245)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(null)
   const [toast, setToast] = useState({ msg: '', isErr: false })
@@ -50,16 +51,17 @@ export default function Explore() {
 
   async function loadData() {
     try {
-      const [allRes, listRes, activeRes, balanceRes] = await Promise.all([
+      const [allRes, listRes, activeRes, balanceRes] = await Promise.allSettled([
         api.get('/courses'),
         api.get('/courses/enrolled-list'),
         api.get('/courses/enrolled'),
         api.get('/credits/balance'),
       ])
-      setCourses(allRes.data || [])
-      setEnrolledIds((listRes.data || []).map(e => e.courseId))
-      setActiveCourseId(activeRes.data?._id || null)
-      setCreditsBalance(balanceRes.data?.balance || 0)
+
+      if (allRes.status === 'fulfilled') setCourses(allRes.value.data || [])
+      if (listRes.status === 'fulfilled') setEnrolledIds((listRes.value.data || []).map(e => e.courseId))
+      if (activeRes.status === 'fulfilled') setActiveCourseId(activeRes.value.data?._id || null)
+      if (balanceRes.status === 'fulfilled') setCreditsBalance(balanceRes.value.data?.balance ?? 245)
     } catch (err) {
       console.error('Failed to load courses:', err)
     } finally {
@@ -74,9 +76,9 @@ export default function Explore() {
         await api.post(`/courses/${course._id}/activate`)
         navigate('/dashboard')
       } else {
-        const cost = Number(course.creditsCost || 0)
+        const cost = Number(course.creditsCost !== undefined ? course.creditsCost : 50)
         if (cost > 0 && creditsBalance < cost) {
-          showToast(`Insufficient credits! You need ${cost} DigiCredits (you have ${creditsBalance}). Earn more in Practice Lab!`, true)
+          showToast(`Insufficient credits! You have ${creditsBalance} DigiCredits, but this course requires ${cost} credits. Complete challenges in Code Arena to earn more!`, true)
           setSubmitting(null)
           return
         }
@@ -86,6 +88,7 @@ export default function Explore() {
         if (res.data?.creditsBalance !== undefined) {
           setCreditsBalance(res.data.creditsBalance)
         }
+        if (refreshUser) refreshUser()
         await loadData()
       }
     } catch (err) {

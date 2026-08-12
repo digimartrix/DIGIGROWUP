@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
+import api from '../lib/api'
 
 const AuthContext = createContext(null)
 
@@ -7,12 +8,31 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  const refreshUser = async (authToken = token) => {
+    if (!authToken) return
+    try {
+      const res = await api.get('/auth/me')
+      if (res.data?.success && res.data.user) {
+        setUser(res.data.user)
+        localStorage.setItem('digi_user', JSON.stringify(res.data.user))
+      }
+    } catch (err) {
+      console.warn('Failed to refresh user profile from server:', err.message)
+    }
+  }
+
   useEffect(() => {
     const storedToken = localStorage.getItem('digi_token')
     const storedUser = localStorage.getItem('digi_user')
     if (storedToken && storedUser) {
-      setToken(storedToken)
-      setUser(JSON.parse(storedUser))
+      try {
+        const parsedUser = JSON.parse(storedUser)
+        setToken(storedToken)
+        setUser(parsedUser)
+        refreshUser(storedToken)
+      } catch (e) {
+        console.error('Failed to parse stored user data:', e)
+      }
     }
     setLoading(false)
   }, [])
@@ -22,6 +42,7 @@ export function AuthProvider({ children }) {
     setUser(userData)
     localStorage.setItem('digi_token', tokenVal)
     localStorage.setItem('digi_user', JSON.stringify(userData))
+    refreshUser(tokenVal)
   }
 
   const logout = () => {
@@ -32,7 +53,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading, isAuthenticated: !!token }}>
+    <AuthContext.Provider value={{ user, token, login, logout, refreshUser, loading, isAuthenticated: !!token }}>
       {children}
     </AuthContext.Provider>
   )

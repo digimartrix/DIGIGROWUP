@@ -68,10 +68,11 @@ export default function Layout() {
     else if (path.includes('/settings')) setPageTitle('Settings')
     else if (path.includes('/lesson')) setPageTitle('Lesson View')
     else if (path.includes('/quiz')) setPageTitle('Assessment')
+    else if (path.includes('/instructor-dashboard')) setPageTitle('Instructor Studio')
     else if (path.includes('/admin-dashboard')) setPageTitle('Admin Dashboard')
   }, [location])
 
-  // Periodically fetch credits
+  // Fetch credits on user mount and route navigation
   useEffect(() => {
     if (user?.id) {
       api.get('/credits/balance')
@@ -82,7 +83,7 @@ export default function Layout() {
         })
         .catch(() => {})
     }
-  }, [user])
+  }, [user, location.pathname])
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex font-body text-slate-900 relative">
