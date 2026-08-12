@@ -40,13 +40,14 @@ router.post(
       if (!errors.isEmpty()) {
         return res.status(400).json({ message: errors.array()[0].msg });
       }
-      const { name, email, password } = req.body;
+      const { name, email, password, role } = req.body;
 
       const exists = await User.findOne({ email });
       if (exists) return res.status(409).json({ message: 'An account with this email already exists.' });
 
+      const assignedRole = ['student', 'instructor', 'mentor'].includes(role) ? role : 'student';
       const passwordHash = await bcrypt.hash(password, 12);
-      const user = await User.create({ name, email, passwordHash });
+      const user = await User.create({ name, email, passwordHash, role: assignedRole });
 
       // Auto-enroll in the seeded course
       const seededCourse = await Course.findOne({});
