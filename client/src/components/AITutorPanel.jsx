@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
-import { X, Brain, Send, Loader2, ChevronRight } from 'lucide-react'
+import { X, Brain, Send, Loader2, ChevronRight, Volume2 } from 'lucide-react'
 import api from '../lib/api'
+import { playLoudClearVoice } from '../lib/speech'
 
 export default function AITutorPanel({ isOpen, onClose, lessonId, lessonTitle }) {
   const [messages, setMessages] = useState([
@@ -106,6 +107,16 @@ export default function AITutorPanel({ isOpen, onClose, lessonId, lessonTitle })
                 }`}
               >
                 <pre className="whitespace-pre-wrap font-body text-xs md:text-sm">{msg.content}</pre>
+                {msg.role === 'assistant' && (
+                  <button
+                    onClick={() => playLoudClearVoice(msg.content)}
+                    title="Read out loud (High Clarity Voice)"
+                    className="mt-2 flex items-center gap-1 text-[10px] font-mono text-[#3895D2] hover:text-[#2c7db5] font-bold"
+                  >
+                    <Volume2 size={12} />
+                    <span>Listen</span>
+                  </button>
+                )}
               </div>
             </div>
           ))}

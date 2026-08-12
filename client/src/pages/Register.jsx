@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { Eye, EyeOff, CheckCircle2, AlertCircle, Rocket, Code2, Users, Zap, Volume2, ShieldCheck, Mail, Lock, User, BookOpen, GraduationCap, Shield } from 'lucide-react'
 import api from '../lib/api'
 import Lottie from 'lottie-react'
+import { playLoudClearVoice } from '../lib/speech'
 
 const THOUGHTS = [
   "Choose your role to get custom dashboard tools! ✨",
@@ -24,16 +25,16 @@ const ROLE_OPTIONS = [
   {
     id: 'instructor',
     title: 'Course Instructor',
-    icon: BookOpen,
-    color: '#E8A33D',
-    desc: 'Author courses, markdown lessons & interactive quizzes'
+    icon: Code2,
+    color: '#EA4532',
+    desc: 'Author courses, create coding quizzes & track royalties'
   },
   {
     id: 'mentor',
     title: 'Ecosystem Mentor',
-    icon: Shield,
-    color: '#8B5CF6',
-    desc: 'Host live sessions, review projects & mentor learners'
+    icon: Users,
+    color: '#4FB286',
+    desc: 'Host 1-on-1 guidance calls & live workshops'
   }
 ]
 
@@ -79,19 +80,7 @@ export default function Register() {
   }, [])
 
   const speakThought = (textToSpeak) => {
-    try {
-      const synth = window.speechSynthesis
-      if (synth) {
-        synth.cancel()
-        const cleanText = textToSpeak.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '')
-        const utterance = new SpeechSynthesisUtterance(cleanText)
-        utterance.rate = 1.0
-        utterance.pitch = 1.1
-        synth.speak(utterance)
-      }
-    } catch (e) {
-      console.warn("Speech failed:", e)
-    }
+    playLoudClearVoice(textToSpeak)
   }
 
   const handleRoboClick = () => {

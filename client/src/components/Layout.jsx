@@ -7,6 +7,8 @@ import { useAuth } from '../context/AuthContext'
 import api from '../lib/api'
 import Lottie from 'lottie-react'
 
+import { playLoudClearVoice } from '../lib/speech'
+
 export default function Layout() {
   const { user } = useAuth()
   const location = useLocation()
@@ -27,23 +29,11 @@ export default function Layout() {
   // Web Speech Synthesis welcome trigger when dashboard loads / user logs in
   useEffect(() => {
     if (user?.name && !sessionStorage.getItem('hasWelcomed')) {
-      // Small timeout to allow user interaction context state registration (browser audio policy)
       const timeout = setTimeout(() => {
-        try {
-          const synth = window.speechSynthesis
-          if (synth) {
-            const userName = user.name.split(' ')[0]
-            const speakMsg = new SpeechSynthesisUtterance(
-              `Welcome back to DigiGrowUp, ${userName}! Your learning command center is active.`
-            )
-            speakMsg.rate = 0.95 // slightly slower for premium tone
-            synth.speak(speakMsg)
-            sessionStorage.setItem('hasWelcomed', 'true')
-          }
-        } catch (err) {
-          console.warn('Speech synthesis welcome skipped:', err)
-        }
-      }, 1000)
+        const userName = user.name.split(' ')[0]
+        playLoudClearVoice(`Welcome to DigiGrowUp, ${userName}! Your learning workspace is ready.`)
+        sessionStorage.setItem('hasWelcomed', 'true')
+      }, 800)
       return () => clearTimeout(timeout)
     }
   }, [user])

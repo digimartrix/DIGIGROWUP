@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { Eye, EyeOff, AlertCircle, Sparkles, BookOpen, Brain, Trophy, Volume2, ShieldCheck, Mail, Lock, UserCheck, Shield } from 'lucide-react'
 import api from '../lib/api'
 import Lottie from 'lottie-react'
+import { playLoudClearVoice } from '../lib/speech'
 
 const THOUGHTS = [
   "Choose your role portal: Student, Instructor, or Admin! 🎯",
@@ -88,19 +89,7 @@ export default function Login() {
   }, [])
 
   const speakThought = (textToSpeak) => {
-    try {
-      const synth = window.speechSynthesis
-      if (synth) {
-        synth.cancel()
-        const cleanText = textToSpeak.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '')
-        const utterance = new SpeechSynthesisUtterance(cleanText)
-        utterance.rate = 1.0
-        utterance.pitch = 1.1
-        synth.speak(utterance)
-      }
-    } catch (e) {
-      console.warn("Speech synthesis unavailable:", e)
-    }
+    playLoudClearVoice(textToSpeak)
   }
 
   const handleRoboClick = () => {
