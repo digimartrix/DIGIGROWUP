@@ -543,27 +543,33 @@ export default function InstructorDashboard() {
         </div>
       </div>
 
-      {/* Tabs Switcher */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto">
+      {/* Tabs Switcher Segmented Control */}
+      <div className="bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 inline-flex items-center gap-2 overflow-x-auto max-w-full">
         {[
-          { id: 'courses', label: `Courses (${courses.length})`, icon: BookOpen },
-          { id: 'events', label: `Live Events (${events.length})`, icon: Video },
-          { id: 'resources', label: `Resource Hub (${resources.length})`, icon: Download },
-          { id: 'projects', label: `Build Lab Projects (${projects.length})`, icon: Code }
+          { id: 'courses', label: 'Courses', count: courses.length, icon: BookOpen },
+          { id: 'events', label: 'Live Events', count: events.length, icon: Video },
+          { id: 'resources', label: 'Resource Hub', count: resources.length, icon: Download },
+          { id: 'projects', label: 'Build Lab Projects', count: projects.length, icon: Code }
         ].map((tab) => {
           const Icon = tab.icon
+          const isActive = activeTab === tab.id
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4.5 py-2 rounded-xl text-xs md:text-sm font-bold font-heading transition-all flex items-center gap-2 whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'bg-[#0F172A] text-white shadow-xs'
-                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+              className={`px-5 py-2.5 rounded-xl text-xs md:text-sm font-heading transition-all flex items-center gap-2.5 whitespace-nowrap ${
+                isActive
+                  ? 'bg-[#0F172A] text-white shadow-sm font-black'
+                  : 'bg-transparent text-slate-600 hover:text-slate-900 hover:bg-white/60 font-bold'
               }`}
             >
-              <Icon size={15} />
+              <Icon size={16} className={isActive ? 'text-[#3895D2]' : 'text-slate-400'} />
               <span>{tab.label}</span>
+              <span className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold ${
+                isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {tab.count}
+              </span>
             </button>
           )
         })}
