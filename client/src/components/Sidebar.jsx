@@ -4,10 +4,10 @@ import {
   Home, BookOpen, Brain, Layers, Terminal, Users, UserCheck,
   GraduationCap, Rocket, Trophy, CreditCard, Package,
   Calendar, Bell, User, Settings, LogOut, ShieldCheck,
-  Shield, Activity, Sparkles, FolderPlus
+  Shield, Activity, Sparkles, FolderPlus, X
 } from 'lucide-react'
 
-export default function Sidebar({ onOpenTutor }) {
+export default function Sidebar({ onOpenTutor, mobileOpen = false, onClose }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
@@ -100,12 +100,12 @@ export default function Sidebar({ onOpenTutor }) {
         ]
       },
       {
-        title: 'HANDS-ON LABS',
+        title: 'PRACTICE & EXPERIENCES',
         items: [
-          { to: '/code-arena', icon: Terminal, label: 'Practice Lab' },
-          { to: '/build-lab', icon: GraduationCap, label: 'Project Studio' },
+          { to: '/build-lab', icon: Terminal, label: 'Build Lab' },
+          { to: '/code-arena', icon: Rocket, label: 'Code Arena' },
           { to: '/mentor-connect', icon: UserCheck, label: 'Mentor Connect' },
-          { to: '/live-learning', icon: Calendar, label: 'Live Events' },
+          { to: '/live-learning', icon: Calendar, label: 'Live Learning' },
         ]
       },
       {
@@ -125,31 +125,53 @@ export default function Sidebar({ onOpenTutor }) {
   const sections = getNavSections()
 
   return (
-    <aside className="w-[280px] flex-shrink-0 flex flex-col bg-[#0F172A] h-screen sticky top-0 text-white z-20 shadow-xl border-r border-slate-800">
-      
-      {/* Brand logo container - DigiGrowUp branding */}
-      <div className="px-5 h-[76px] flex-shrink-0 border-b border-white/10 flex items-center bg-[#0B0F19] gap-3">
-        <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center overflow-hidden flex-shrink-0 bg-white shadow-sm">
-          <img
-            src="/favicon_circle.png"
-            alt="Digimartrix Logo"
-            className="w-full h-full object-contain p-0.5"
-            onError={(e) => {
-              e.target.style.display = 'none';
-              e.target.parentElement.innerHTML = '🎯';
-            }}
-          />
+    <>
+      {/* Mobile Backdrop Overlay */}
+      {mobileOpen && (
+        <div 
+          onClick={onClose} 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-40 lg:hidden animate-fade-in" 
+        />
+      )}
+
+      <aside className={`
+        ${mobileOpen ? 'fixed inset-y-0 left-0 z-50 flex' : 'hidden lg:flex'}
+        w-[280px] flex-shrink-0 flex-col bg-[#0F172A] h-screen sticky top-0 text-white z-20 shadow-xl border-r border-slate-800 transition-all duration-200
+      `}>
+        
+        {/* Brand logo container - DigiGrowUp branding */}
+        <div className="px-5 h-[76px] flex-shrink-0 border-b border-white/10 flex items-center justify-between bg-[#0B0F19]">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-full border border-white/20 flex items-center justify-center overflow-hidden flex-shrink-0 bg-white shadow-sm">
+              <img
+                src="/favicon_circle.png"
+                alt="Digimartrix Logo"
+                className="w-full h-full object-contain p-0.5"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.parentElement.innerHTML = '🎯';
+                }}
+              />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="font-heading font-black text-[15px] tracking-wide leading-none select-none">
+                <span className="text-[#3895D2]">DIGI</span>
+                <span className="text-[#EA4532]">GROWUP</span>
+              </span>
+              <span className="text-white/60 font-mono tracking-widest text-[7.5px] leading-none mt-1 font-bold truncate">
+                {role.toUpperCase()} • WORKSPACE
+              </span>
+            </div>
+          </div>
+
+          {/* Close button for mobile drawer */}
+          <button 
+            onClick={onClose} 
+            className="lg:hidden p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10"
+          >
+            <X size={18} />
+          </button>
         </div>
-        <div className="flex flex-col min-w-0">
-          <span className="font-heading font-black text-[16px] tracking-wide leading-none select-none">
-            <span className="text-[#3895D2]">DIGI</span>
-            <span className="text-[#EA4532]">GROWUP</span>
-          </span>
-          <span className="text-white/60 font-mono tracking-widest text-[7.5px] leading-none mt-1 font-bold truncate">
-            {role.toUpperCase()} • WORKSPACE
-          </span>
-        </div>
-      </div>
 
       {/* Navigation menu list */}
       <nav className="flex-1 overflow-y-auto px-4 py-5 space-y-6 scrollbar-thin">
@@ -286,5 +308,6 @@ export default function Sidebar({ onOpenTutor }) {
         </button>
       </div>
     </aside>
+    </>
   )
 }

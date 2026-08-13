@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import AITutorPanel from './AITutorPanel'
-import { Bell, Trophy, Brain } from 'lucide-react'
+import { Bell, Trophy, Brain, Menu } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import api from '../lib/api'
 import Lottie from 'lottie-react'
@@ -14,9 +14,15 @@ export default function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
   const [tutorOpen, setTutorOpen] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [credits, setCredits] = useState(245)
   const [pageTitle, setPageTitle] = useState('Learning Command Center')
   const [roboData, setRoboData] = useState(null)
+
+  // Close mobile drawer on route navigation
+  useEffect(() => {
+    setMobileNavOpen(false)
+  }, [location.pathname])
 
   // Fetch Lottie JSON dynamically from public asset
   useEffect(() => {
@@ -77,28 +83,43 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex font-body text-slate-900 relative">
-      {/* Sidebar Navigation */}
-      <Sidebar onOpenTutor={() => setTutorOpen(true)} />
+      {/* Sidebar Navigation (with responsive mobile drawer) */}
+      <Sidebar 
+        onOpenTutor={() => setTutorOpen(true)} 
+        mobileOpen={mobileNavOpen}
+        onClose={() => setMobileNavOpen(false)}
+      />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         
-        {/* Common Shared Header (Aligned to matching h-[76px] height with black background) */}
-        <header className="bg-[#0F172A] text-white h-[76px] px-6 flex items-center justify-between flex-shrink-0 z-10 shadow-md border-b border-slate-800">
+        {/* Common Shared Header */}
+        <header className="bg-[#0F172A] text-white h-[70px] md:h-[76px] px-4 md:px-6 flex items-center justify-between flex-shrink-0 z-10 shadow-md border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <h1 className="text-base md:text-lg font-heading font-black text-white tracking-wider uppercase">
+            {/* Hamburger button for mobile / tablet */}
+            <button
+              onClick={() => setMobileNavOpen(true)}
+              className="lg:hidden p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+              aria-label="Open Navigation"
+            >
+              <Menu size={20} />
+            </button>
+
+            <h1 className="text-sm sm:text-base md:text-lg font-heading font-black text-white tracking-wider uppercase truncate max-w-[150px] sm:max-w-none">
               {pageTitle}
             </h1>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* DigiCredits badge */}
             <button
               onClick={() => navigate('/digicredits')}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/15 border border-white/20 rounded-full transition-all"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-white/10 hover:bg-white/15 border border-white/20 rounded-full transition-all"
             >
               <Trophy size={13} className="text-[#3895D2]" />
-              <span className="font-mono text-xs font-bold text-white">{credits} Credits</span>
+              <span className="font-mono text-[11px] sm:text-xs font-bold text-white whitespace-nowrap">
+                {credits} <span className="hidden sm:inline">Credits</span>
+              </span>
             </button>
 
             {/* Notifications Bell */}
@@ -113,16 +134,16 @@ export default function Layout() {
             {/* DigiMentor Quick Access */}
             <button
               onClick={() => setTutorOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#3895D2] text-white hover:bg-opacity-90 rounded text-xs font-bold transition-all shadow-3xs"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3.5 sm:py-1.5 bg-[#3895D2] text-white hover:bg-opacity-90 rounded-xl text-xs font-bold transition-all shadow-xs"
             >
               <Brain size={13} />
-              DigiMentor
+              <span className="hidden sm:inline">DigiMentor</span>
             </button>
           </div>
         </header>
 
-        {/* Dynamic Route Outlet Container with clean spacing and top padding to prevent header overlaps */}
-        <div className="flex-1 overflow-y-auto p-8 pt-8">
+        {/* Dynamic Route Outlet Container with responsive padding */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
           <Outlet context={{ onOpenTutor: () => setTutorOpen(true) }} />
         </div>
       </div>
@@ -130,11 +151,11 @@ export default function Layout() {
       {/* Global DigiMentor Chat Drawer */}
       <AITutorPanel isOpen={tutorOpen} onClose={() => setTutorOpen(false)} />
 
-      {/* Floating Lottie Robot chatbot widget (Bigger size: w-[140px] h-[140px]) */}
+      {/* Floating Lottie Robot chatbot widget (Responsive size) */}
       {roboData && (
         <div 
           onClick={() => setTutorOpen(!tutorOpen)}
-          className="fixed bottom-6 right-6 z-40 w-[140px] h-[140px] cursor-pointer hover:scale-105 active:scale-95 transition-transform drop-shadow-2xl flex items-center justify-center bg-white/5 backdrop-blur-xs rounded-full border border-white/5"
+          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-30 w-20 h-20 sm:w-28 sm:h-28 md:w-32 md:h-32 cursor-pointer hover:scale-105 active:scale-95 transition-transform drop-shadow-xl flex items-center justify-center"
           title="Click to talk with DigiMentor"
         >
           <Lottie 
