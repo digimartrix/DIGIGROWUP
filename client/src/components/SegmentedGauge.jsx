@@ -1,18 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 
 const TIERS = [
-  { label: 'CRITICAL',   min: 0,  max: 40,  color: '#EA4532' },
-  { label: 'DEVELOPING', min: 40, max: 70,  color: '#E8A33D' },
-  { label: 'PROFICIENT', min: 70, max: 90,  color: '#3895D2' },
-  { label: 'MASTERED',   min: 90, max: 101, color: '#4FB286' },
+  { label: 'DEVELOPING', min: 0,  max: 60,  color: '#0284C7' },
+  { label: 'PROFICIENT', min: 60, max: 85,  color: '#3895D2' },
+  { label: 'MASTERED',   min: 85, max: 101, color: '#10B981' },
 ]
 
 function getColor(score) {
-  return '#EA4532'
+  if (score >= 85) return '#10B981' // Emerald Positive Success
+  if (score >= 60) return '#3895D2' // Digi Blue Proficient
+  return '#0284C7' // Sky Blue Developing
 }
 
 function getTier(score) {
-  return TIERS.find(t => score >= t.min && score < t.max) || TIERS[3]
+  return TIERS.find(t => score >= t.min && score < t.max) || TIERS[2]
 }
 
 export default function SegmentedGauge({ topic, score = 0, animated = false }) {
@@ -22,7 +23,6 @@ export default function SegmentedGauge({ topic, score = 0, animated = false }) {
   const tier = getTier(score)
 
   const [visibleCount, setVisibleCount] = useState(animated ? 0 : filledCount)
-  const prevScore = useRef(score)
   const animRef = useRef(null)
 
   useEffect(() => {
@@ -38,24 +38,23 @@ export default function SegmentedGauge({ topic, score = 0, animated = false }) {
   }, [score, filledCount, animated])
 
   const tierColors = {
-    'CRITICAL': 'text-[#EA4532]',
-    'DEVELOPING': 'text-[#E8A33D]',
+    'DEVELOPING': 'text-[#0284C7]',
     'PROFICIENT': 'text-[#3895D2]',
-    'MASTERED': 'text-[#4FB286]',
+    'MASTERED': 'text-emerald-600',
   }
 
   return (
     <div className="w-full">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-slate-600 text-xs font-semibold tracking-wide truncate pr-2">{topic}</span>
+        <span className="text-slate-800 text-xs font-bold tracking-wide truncate pr-2">{topic}</span>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span
-            className={`font-mono text-xs uppercase tracking-widest ${tierColors[tier.label] || 'text-slate-400'}`}
-            style={{ letterSpacing: '0.05em', fontSize: '10px' }}
+            className={`font-mono text-xs uppercase tracking-wider font-bold ${tierColors[tier.label] || 'text-slate-500'}`}
+            style={{ fontSize: '10px' }}
           >
             {tier.label}
           </span>
-          <span className={`font-mono text-sm font-semibold ${animated ? 'number-tick' : ''}`} style={{ color }}>
+          <span className={`font-mono text-xs md:text-sm font-black ${animated ? 'number-tick' : ''}`} style={{ color }}>
             {score}<span className="text-slate-400 text-xs">%</span>
           </span>
         </div>
