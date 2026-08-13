@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import api from '../lib/api'
-import { Calendar, Target, Play, Send, ChevronDown, ChevronUp, Link2 } from 'lucide-react'
+import { Calendar, Target, Play, Send, ChevronDown, ChevronUp, Link2, Plus } from 'lucide-react'
 
 const DIFFICULTY_COLORS = {
   Beginner: '#4FB286',
@@ -9,6 +11,8 @@ const DIFFICULTY_COLORS = {
 }
 
 export default function BuildLab() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
   const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeProj, setActiveProj] = useState(null) // projectId
@@ -59,13 +63,28 @@ export default function BuildLab() {
 
   return (
     <div className="page-enter">
-      <div className="max-w-4xl">
+      <div className="max-w-4xl space-y-6">
         {/* Header info */}
-        <div className="mb-6">
-          <p className="font-mono text-[9px] text-[#EA4532] uppercase tracking-widest mb-1.5 font-bold">PROJECT HUB</p>
-          <p className="text-slate-500 text-xs md:text-sm font-medium">
-            Bridge the gap between courses and real engineering. Build high-fidelity projects, submit for evaluation, and expand your portfolio.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <p className="font-mono text-[10px] text-[#EA4532] uppercase tracking-widest mb-1 font-bold">PROJECT HUB</p>
+            <h1 className="text-2xl font-black font-heading tracking-tight text-slate-850">
+              Build Lab Project Challenges
+            </h1>
+            <p className="text-slate-500 text-xs md:text-sm font-medium mt-0.5">
+              Bridge the gap between courses and real engineering. Build high-fidelity projects, submit for evaluation, and expand your portfolio.
+            </p>
+          </div>
+
+          {user?.role === 'instructor' && (
+            <button
+              onClick={() => navigate('/instructor-dashboard')}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold font-heading transition-all shadow-xs flex-shrink-0"
+            >
+              <Plus size={14} />
+              <span>Author Project</span>
+            </button>
+          )}
         </div>
 
         {/* Project List */}

@@ -576,10 +576,10 @@ export default function InstructorDashboard() {
                 {[1, 2].map(i => <div key={i} className="h-28 bg-slate-100 rounded-xl animate-pulse" />)}
               </div>
             ) : courses.length === 0 ? (
-              <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-slate-500">
+              <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-slate-500 shadow-2xs">
                 <BookOpen size={36} className="mx-auto mb-2 text-slate-300" />
                 <p className="text-sm font-bold text-slate-800">No courses created yet.</p>
-                <p className="text-xs text-slate-400 mt-1">Click "Create New Course" above to author your first track.</p>
+                <p className="text-xs text-slate-500 mt-1">Click "Create New Course" above to author your first track.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -590,11 +590,11 @@ export default function InstructorDashboard() {
                       key={c._id}
                       onClick={() => handleSelectCourse(c)}
                       className={`bg-white border rounded-2xl p-5 cursor-pointer transition-all shadow-2xs hover:shadow-xs ${
-                        isSelected ? 'border-[#3895D2] ring-2 ring-[#3895D2]/15' : 'border-slate-200 hover:border-slate-300'
+                        isSelected ? 'border-[#3895D2] ring-2 ring-[#3895D2]/20 bg-blue-50/20' : 'border-slate-200 hover:border-slate-300'
                       }`}
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                      <div className="flex justify-between items-start mb-2.5">
+                        <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md bg-slate-100 text-slate-800 border border-slate-200">
                           {c.category} · {c.difficulty}
                         </span>
                         <button
@@ -602,16 +602,22 @@ export default function InstructorDashboard() {
                             e.stopPropagation()
                             handleDeleteCourse(c._id, c.title)
                           }}
-                          className="text-slate-400 hover:text-rose-600 p-1"
+                          className="text-slate-400 hover:text-rose-600 p-1 transition-colors"
+                          title="Delete Course"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={15} />
                         </button>
                       </div>
-                      <h3 className="font-heading font-bold text-slate-850 text-base mb-1">{c.title}</h3>
-                      <p className="text-xs text-slate-500 line-clamp-2 font-medium mb-3">{c.description}</p>
-                      <div className="flex justify-between items-center text-xs font-mono text-slate-400 pt-2 border-t border-slate-100">
-                        <span>{c.moduleCount || 0} Modules</span>
-                        <span className="text-[#3895D2] font-bold">{c.creditsCost || 0} Credits</span>
+                      <h3 className="font-heading font-black text-slate-900 text-base mb-1.5">{c.title}</h3>
+                      <p className="text-xs text-slate-600 line-clamp-2 font-medium mb-3.5 leading-relaxed">{c.description}</p>
+                      <div className="flex justify-between items-center text-xs font-bold text-slate-700 pt-3 border-t border-slate-100">
+                        <span className="flex items-center gap-1.5 text-slate-700">
+                          <Layers size={14} className="text-[#3895D2]" />
+                          <span>{c.moduleCount || 0} Modules</span>
+                        </span>
+                        <span className="bg-[#3895D2]/10 text-[#3895D2] border border-[#3895D2]/20 px-2.5 py-0.5 rounded-md font-black">
+                          {c.creditsCost || 0} Credits
+                        </span>
                       </div>
                     </div>
                   )
@@ -626,12 +632,12 @@ export default function InstructorDashboard() {
               <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs space-y-6">
                 <div className="flex justify-between items-center pb-4 border-b border-slate-100">
                   <div>
-                    <span className="text-[10px] font-mono font-bold text-[#3895D2] uppercase">CURRICULUM BUILDER</span>
+                    <span className="text-[10px] font-mono font-bold text-[#3895D2] uppercase tracking-wider">CURRICULUM BUILDER</span>
                     <h3 className="font-heading font-black text-slate-900 text-xl">{selectedCourse.title}</h3>
                   </div>
                   <button
                     onClick={() => setShowAddModule(true)}
-                    className="flex items-center gap-1.5 px-3.5 py-2 bg-[#3895D2] hover:bg-[#2c7db5] text-white text-xs font-bold rounded-xl shadow-xs"
+                    className="flex items-center gap-1.5 px-4 py-2 bg-[#3895D2] hover:bg-[#2c7db5] text-white text-xs font-bold rounded-xl shadow-xs transition-all"
                   >
                     <Plus size={14} />
                     <span>Add Module</span>
@@ -682,10 +688,23 @@ export default function InstructorDashboard() {
                 </div>
               </div>
             ) : (
-              <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400">
-                <Layers size={40} className="mx-auto mb-2 text-slate-300" />
-                <p className="text-base font-bold text-slate-800">Select a course to edit curriculum</p>
-                <p className="text-xs text-slate-500 mt-1">Choose any course from the left panel to manage modules, lessons, and quizzes.</p>
+              <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-500 shadow-2xs space-y-4">
+                <div className="w-16 h-16 rounded-2xl bg-blue-50 text-[#3895D2] flex items-center justify-center mx-auto">
+                  <Layers size={32} />
+                </div>
+                <div>
+                  <h4 className="text-lg font-black text-slate-900 font-heading">Course Curriculum Editor</h4>
+                  <p className="text-xs text-slate-600 max-w-md mx-auto mt-1 font-medium leading-relaxed">
+                    Select a course from the list on the left to structure its modules, write markdown lessons with interactive code snippets, and build auto-graded assessment quizzes.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+                >
+                  <Plus size={14} />
+                  <span>Create Another Course</span>
+                </button>
               </div>
             )}
           </div>
@@ -695,24 +714,42 @@ export default function InstructorDashboard() {
       {/* TAB 2: LIVE EVENTS */}
       {activeTab === 'events' && (
         <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs space-y-6">
-          <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+          <div className="flex justify-between items-center pb-4 border-b border-slate-100">
             <div>
-              <h3 className="font-heading font-black text-slate-900 text-lg">Published Live Events ({events.length})</h3>
-              <p className="text-xs text-slate-500">Live workshops and masterclasses published to students in real-time.</p>
+              <h3 className="font-heading font-black text-slate-900 text-lg">Published Live Events & Workshops ({events.length})</h3>
+              <p className="text-xs text-slate-600 font-medium">All sessions are instantly synced and broadcast to student masterclass schedules.</p>
             </div>
+            <button
+              onClick={() => setShowCreateEventModal(true)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-[#3895D2] hover:bg-[#2c7db5] text-white text-xs font-bold rounded-xl shadow-xs transition-all"
+            >
+              <Plus size={14} />
+              <span>Schedule Event</span>
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {events.map((e) => (
-              <div key={e._id} className="border border-slate-200 rounded-xl p-5 bg-slate-50/50 flex flex-col justify-between">
+              <div key={e._id} className="border border-slate-200 rounded-2xl p-5 bg-white shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between">
                 <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">{e.type || 'Workshop'}</span>
-                    <button onClick={() => handleDeleteEvent(e._id, e.title)} className="text-slate-400 hover:text-rose-600"><Trash2 size={14} /></button>
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-[11px] font-black tracking-wider text-emerald-800 bg-emerald-100 border border-emerald-200 px-3 py-0.5 rounded-full uppercase">
+                      ● {e.type || 'Workshop'}
+                    </span>
+                    <button
+                      onClick={() => handleDeleteEvent(e._id, e.title)}
+                      className="text-slate-400 hover:text-rose-600 p-1 transition-colors"
+                      title="Delete Event"
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </div>
-                  <h4 className="font-heading font-bold text-slate-900 text-base mb-1">{e.title}</h4>
-                  <p className="text-xs text-slate-600 line-clamp-2 font-medium mb-3">{e.description}</p>
-                  <p className="text-xs font-mono text-slate-500">📅 {e.date} · ⏰ {e.time} · 👥 {e.capacity} Seats</p>
+                  <h4 className="font-heading font-black text-slate-900 text-base mb-2">{e.title}</h4>
+                  <p className="text-xs text-slate-600 line-clamp-3 font-medium mb-4 leading-relaxed">{e.description}</p>
+                </div>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-700">
+                  <span className="text-slate-700">📅 {e.date} · ⏰ {e.time}</span>
+                  <span className="text-[#3895D2]">👥 {e.capacity} Seats</span>
                 </div>
               </div>
             ))}
@@ -723,24 +760,44 @@ export default function InstructorDashboard() {
       {/* TAB 3: RESOURCES */}
       {activeTab === 'resources' && (
         <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs space-y-6">
-          <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+          <div className="flex justify-between items-center pb-4 border-b border-slate-100">
             <div>
               <h3 className="font-heading font-black text-slate-900 text-lg">Published Educational Resources ({resources.length})</h3>
-              <p className="text-xs text-slate-500">Cheat sheets, starter code boilerplates, and system design maps.</p>
+              <p className="text-xs text-slate-600 font-medium">Cheat sheets, architectural maps, starter templates, and code banks.</p>
             </div>
+            <button
+              onClick={() => setShowCreateResourceModal(true)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all"
+            >
+              <Plus size={14} />
+              <span>Upload Resource</span>
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {resources.map((r) => (
-              <div key={r._id} className="border border-slate-200 rounded-xl p-5 bg-slate-50/50 flex flex-col justify-between">
+              <div key={r._id} className="border border-slate-200 rounded-2xl p-5 bg-white shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between">
                 <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-bold text-purple-800 bg-purple-100 px-2.5 py-0.5 rounded-full">{r.type || 'Cheatsheet'}</span>
-                    <button onClick={() => handleDeleteResource(r._id, r.title)} className="text-slate-400 hover:text-rose-600"><Trash2 size={14} /></button>
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-[11px] font-black tracking-wider text-purple-800 bg-purple-100 border border-purple-200 px-3 py-0.5 rounded-full uppercase">
+                      📄 {r.type || 'Cheatsheet'}
+                    </span>
+                    <button
+                      onClick={() => handleDeleteResource(r._id, r.title)}
+                      className="text-slate-400 hover:text-rose-600 p-1 transition-colors"
+                      title="Delete Resource"
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </div>
-                  <h4 className="font-heading font-bold text-slate-900 text-base mb-1">{r.title}</h4>
-                  <p className="text-xs text-slate-600 line-clamp-2 font-medium mb-3">{r.description}</p>
-                  <p className="text-xs font-mono text-slate-500">💎 Cost: {r.creditsCost === 0 ? 'FREE' : `${r.creditsCost} Credits`}</p>
+                  <h4 className="font-heading font-black text-slate-900 text-base mb-2">{r.title}</h4>
+                  <p className="text-xs text-slate-600 line-clamp-3 font-medium mb-4 leading-relaxed">{r.description || 'Verified engineering learning asset.'}</p>
+                </div>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-700">
+                  <span className="text-slate-500">🔗 {r.downloadUrl ? 'Direct Link Ready' : 'In-App Preview'}</span>
+                  <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-md font-black">
+                    {r.creditsCost === 0 ? 'FREE' : `${r.creditsCost} Credits`}
+                  </span>
                 </div>
               </div>
             ))}
@@ -751,24 +808,44 @@ export default function InstructorDashboard() {
       {/* TAB 4: PROJECTS */}
       {activeTab === 'projects' && (
         <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs space-y-6">
-          <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+          <div className="flex justify-between items-center pb-4 border-b border-slate-100">
             <div>
               <h3 className="font-heading font-black text-slate-900 text-lg">Build Lab Project Challenges ({projects.length})</h3>
-              <p className="text-xs text-slate-500">Real-world projects for students to implement and submit code repositories.</p>
+              <p className="text-xs text-slate-600 font-medium">Real-world projects for students to implement and submit code repositories.</p>
             </div>
+            <button
+              onClick={() => setShowCreateProjectModal(true)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all"
+            >
+              <Plus size={14} />
+              <span>Create Project</span>
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {projects.map((p) => (
-              <div key={p._id} className="border border-slate-200 rounded-xl p-5 bg-slate-50/50 flex flex-col justify-between">
+              <div key={p._id} className="border border-slate-200 rounded-2xl p-5 bg-white shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between">
                 <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full">{p.difficulty || 'Beginner'}</span>
-                    <button onClick={() => handleDeleteProject(p._id, p.title)} className="text-slate-400 hover:text-rose-600"><Trash2 size={14} /></button>
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-[11px] font-black tracking-wider text-amber-800 bg-amber-100 border border-amber-200 px-3 py-0.5 rounded-full uppercase">
+                      🎯 {p.difficulty || 'Beginner'}
+                    </span>
+                    <button
+                      onClick={() => handleDeleteProject(p._id, p.title)}
+                      className="text-slate-400 hover:text-rose-600 p-1 transition-colors"
+                      title="Delete Project"
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </div>
-                  <h4 className="font-heading font-bold text-slate-900 text-base mb-1">{p.title}</h4>
-                  <p className="text-xs text-slate-600 line-clamp-2 font-medium mb-3">{p.problemStatement}</p>
-                  <p className="text-xs font-mono text-slate-500">Skills: {Array.isArray(p.requiredSkills) ? p.requiredSkills.join(', ') : p.requiredSkills}</p>
+                  <h4 className="font-heading font-black text-slate-900 text-base mb-2">{p.title}</h4>
+                  <p className="text-xs text-slate-600 line-clamp-3 font-medium mb-4 leading-relaxed">{p.problemStatement}</p>
+                </div>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-700">
+                  <span className="text-slate-600 truncate max-w-[240px]">
+                    Skills: {Array.isArray(p.requiredSkills) ? p.requiredSkills.join(', ') : p.requiredSkills}
+                  </span>
+                  <span className="text-purple-600 font-black">+50 XP</span>
                 </div>
               </div>
             ))}

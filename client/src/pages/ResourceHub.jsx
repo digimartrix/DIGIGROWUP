@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api from '../lib/api'
 import {
   FileText, Download, Sparkles, Search, Filter,
   CheckCircle2, AlertCircle, BookOpen, Code2, Layers,
-  ExternalLink, X, Eye, FileCode, Lock, Unlock
+  ExternalLink, X, Eye, FileCode, Lock, Unlock, Plus
 } from 'lucide-react'
 
 const RESOURCES_DATA = [
@@ -144,6 +145,7 @@ function createCounter(initial = 0) {
 
 export default function ResourceHub() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [resources, setResources] = useState(RESOURCES_DATA)
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [searchQuery, setSearchQuery] = useState('')
@@ -288,16 +290,28 @@ export default function ResourceHub() {
           </p>
         </div>
 
-        {/* Search Bar */}
-        <div className="relative w-full sm:w-72">
-          <Search size={15} className="absolute left-3.5 top-3 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search resources, tags..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white text-slate-900 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs font-medium focus:outline-none focus:border-[#3895D2] shadow-2xs"
-          />
+        <div className="flex items-center gap-3">
+          {user?.role === 'instructor' && (
+            <button
+              onClick={() => navigate('/instructor-dashboard')}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold font-heading transition-all shadow-xs flex-shrink-0"
+            >
+              <Plus size={14} />
+              <span>Upload Resources</span>
+            </button>
+          )}
+
+          {/* Search Bar */}
+          <div className="relative w-full sm:w-64">
+            <Search size={15} className="absolute left-3.5 top-3 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search resources, tags..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white text-slate-900 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs font-medium focus:outline-none focus:border-[#3895D2] shadow-2xs"
+            />
+          </div>
         </div>
       </div>
 

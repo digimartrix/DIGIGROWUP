@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import api from '../lib/api'
 import {
   Calendar, User, Clock, ArrowRight, Video,
   CheckCircle2, Sparkles, AlertCircle, PlayCircle,
-  Share2, Users, ExternalLink, X, PlusCircle, Bookmark
+  Share2, Users, ExternalLink, X, PlusCircle, Bookmark, Plus
 } from 'lucide-react'
 
 const EVENTS_DATA = [
@@ -62,6 +64,8 @@ const EVENTS_DATA = [
 ]
 
 export default function LiveLearning() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
   const [events, setEvents] = useState(EVENTS_DATA)
   const [registeredEvents, setRegisteredEvents] = useState(() => {
     const saved = localStorage.getItem('REGISTERED_EVENTS')
@@ -209,6 +213,16 @@ export default function LiveLearning() {
             Join interactive bootcamps, architecture breakdowns, and Q&A sessions hosted by specialist mentors.
           </p>
         </div>
+
+        {user?.role === 'instructor' && (
+          <button
+            onClick={() => navigate('/instructor-dashboard')}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#3895D2] hover:bg-[#2c7db5] text-white text-xs font-bold rounded-xl shadow-xs transition-all flex-shrink-0"
+          >
+            <Plus size={15} />
+            <span>Host & Manage Events</span>
+          </button>
+        )}
       </div>
 
       {/* Filter Tabs */}
