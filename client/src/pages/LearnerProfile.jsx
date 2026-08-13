@@ -227,61 +227,62 @@ export default function LearnerProfile() {
       {/* Metrics Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: 'DigiCredits Balance', val: `${user?.creditsBalance || 285} 💎`, color: '#3895D2' },
-          { label: 'Career Readiness', val: `${user?.careerReadinessScore || 78}%`, color: '#10B981' },
-          { label: 'Courses In Progress', val: '2 Active', color: '#6366F1' },
-          { label: 'Quizzes Mastered', val: '8 Tests', color: '#EA4532' }
+          { label: 'DigiCredits Balance', val: `${user?.creditsBalance || 285} 💎`, sub: 'Available wallet balance', color: '#3895D2' },
+          { label: 'Career Readiness', val: `${user?.careerReadinessScore || 78}%`, sub: 'Full Stack track target', color: '#10B981' },
+          { label: 'Courses Enrolled', val: '2 Active', sub: 'In learning journey', color: '#6366F1' },
+          { label: 'Quizzes Mastered', val: '8 Tests', sub: 'Distinction level', color: '#EA4532' }
         ].map((m, i) => (
-          <div key={i} className="bg-white border border-slate-200 rounded-2xl p-4.5 shadow-2xs">
-            <p className="text-[10px] font-mono font-bold text-slate-400 uppercase">{m.label}</p>
-            <p className="text-xl font-black font-heading text-slate-850 mt-1" style={{ color: m.color }}>
+          <div key={i} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs hover:border-slate-300 transition-all">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{m.label}</p>
+            <p className="text-2xl font-black font-heading text-slate-900" style={{ color: m.color }}>
               {m.val}
             </p>
+            <p className="text-xs text-slate-400 font-medium mt-1">{m.sub}</p>
           </div>
         ))}
       </div>
 
       {/* Verified Certificates & Credentials */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs space-y-4">
-        <div className="flex items-center justify-between">
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs space-y-5">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div>
-            <h3 className="font-heading font-bold text-slate-850 text-base">Verified Certifications</h3>
-            <p className="text-slate-500 text-xs font-medium">Official DigiGrowUp skill mastery credentials and credentials.</p>
+            <h3 className="font-heading font-black text-slate-850 text-lg md:text-xl">Verified Certifications</h3>
+            <p className="text-slate-600 text-sm font-medium mt-0.5">Official DigiGrowUp skill mastery credentials and authenticated exam achievements.</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-1">
           {CERTIFICATES.map((cert) => (
             <div
               key={cert.id}
-              className="border border-slate-200 rounded-xl p-5 bg-slate-50/50 hover:bg-white hover:border-[#3895D2]/40 transition-all flex flex-col justify-between group shadow-2xs"
+              className="border border-slate-200 rounded-2xl p-6 bg-slate-50/70 hover:bg-white hover:border-[#3895D2]/50 hover:shadow-md transition-all flex flex-col justify-between group shadow-2xs"
             >
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[9px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-200">
                     {cert.grade}
                   </span>
-                  <span className="text-[10px] font-mono text-slate-400">{cert.id}</span>
+                  <span className="text-xs font-mono font-bold text-slate-500">{cert.id}</span>
                 </div>
-                <h4 className="font-heading font-bold text-slate-850 text-sm mb-1">{cert.title}</h4>
-                <p className="text-xs text-slate-400 font-medium mb-3">{cert.issuer}</p>
-                <div className="flex flex-wrap gap-1.5">
+                <h4 className="font-heading font-black text-slate-900 text-base md:text-lg mb-1">{cert.title}</h4>
+                <p className="text-xs text-slate-500 font-medium mb-4">{cert.issuer}</p>
+                <div className="flex flex-wrap gap-2 mb-2">
                   {cert.skills.map((s, idx) => (
-                    <span key={idx} className="text-[9px] font-mono bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded">
+                    <span key={idx} className="text-xs font-semibold bg-white border border-slate-200 text-slate-700 px-2.5 py-1 rounded-lg">
                       {s}
                     </span>
                   ))}
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-200 flex justify-between items-center">
-                <span className="text-[10px] font-mono text-slate-400">{cert.issueDate}</span>
+              <div className="mt-5 pt-4 border-t border-slate-200/80 flex justify-between items-center">
+                <span className="text-xs font-semibold text-slate-500 font-mono">Issued {cert.issueDate}</span>
                 <button
                   onClick={() => setCertificateModal(cert)}
-                  className="flex items-center gap-1 text-xs font-bold text-[#3895D2] hover:text-[#2c7db5]"
+                  className="flex items-center gap-1.5 text-xs font-bold text-[#3895D2] hover:text-[#2c7db5] px-3 py-1.5 rounded-lg hover:bg-[#3895D2]/10 transition-colors"
                 >
                   <span>View Certificate</span>
-                  <ExternalLink size={12} />
+                  <ExternalLink size={13} />
                 </button>
               </div>
             </div>

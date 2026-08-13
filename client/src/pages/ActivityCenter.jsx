@@ -196,45 +196,49 @@ export default function ActivityCenter() {
               <div
                 key={notifId}
                 onClick={() => isUnread && markSingleAsRead(notifId)}
-                className={`p-4.5 flex items-start justify-between gap-4 transition-colors cursor-pointer group ${
-                  isUnread ? 'bg-[#3895D2]/5 hover:bg-[#3895D2]/8' : 'bg-white hover:bg-slate-50/80'
+                className={`p-5 flex items-start justify-between gap-4 transition-colors cursor-pointer group ${
+                  isUnread ? 'bg-[#3895D2]/5 hover:bg-[#3895D2]/10' : 'bg-white hover:bg-slate-50'
                 }`}
               >
-                <div className="flex items-start gap-3.5 min-w-0">
+                <div className="flex items-start gap-4 min-w-0">
                   {/* Status Indicator Icon */}
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 mt-0.5 shadow-2xs ${
                     isReward
-                      ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                      ? 'bg-amber-100 text-amber-700 border border-amber-300'
                       : isAlert
-                      ? 'bg-rose-50 text-rose-600 border border-rose-200'
-                      : 'bg-[#3895D2]/10 text-[#3895D2] border border-[#3895D2]/20'
+                      ? 'bg-rose-100 text-rose-700 border border-rose-300'
+                      : 'bg-[#3895D2]/10 text-[#3895D2] border border-[#3895D2]/25'
                   }`}>
-                    {isReward ? <Trophy size={16} /> : isAlert ? <Clock size={16} /> : <Zap size={16} />}
+                    {isReward ? <Trophy size={18} /> : isAlert ? <Clock size={18} /> : <Zap size={18} />}
                   </div>
 
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className={`text-[9px] font-mono font-bold uppercase px-2 py-0.5 rounded ${
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <span className={`text-xs font-bold uppercase px-2.5 py-0.5 rounded-md ${
                         isReward
-                          ? 'bg-amber-100 text-amber-800'
+                          ? 'bg-amber-100 text-amber-900 border border-amber-200'
                           : isAlert
-                          ? 'bg-rose-100 text-rose-800'
-                          : 'bg-slate-100 text-slate-700'
+                          ? 'bg-rose-100 text-rose-900 border border-rose-200'
+                          : 'bg-slate-100 text-slate-800 border border-slate-200'
                       }`}>
-                        {n.type || 'SYSTEM'}
+                        {n.type ? n.type.toUpperCase() : 'SYSTEM'}
                       </span>
                       {isUnread && (
-                        <span className="w-2 h-2 rounded-full bg-[#3895D2]" />
+                        <span className="text-[11px] font-bold text-[#3895D2] flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-full bg-[#3895D2]" />
+                          NEW
+                        </span>
                       )}
                     </div>
 
-                    <p className={`text-xs md:text-sm leading-relaxed ${isUnread ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>
+                    <p className={`text-sm md:text-base leading-snug ${isUnread ? 'font-bold text-slate-950' : 'font-medium text-slate-750'}`}>
                       {n.message || n.msg}
                     </p>
 
-                    <p className="text-[10px] font-mono text-slate-400 mt-1">
-                      {n.createdAt ? new Date(n.createdAt).toLocaleString() : (n.time || 'Recent')}
-                    </p>
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium pt-0.5">
+                      <Clock size={12} className="text-slate-400" />
+                      <span>{n.createdAt ? new Date(n.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : (n.time || 'Recently')}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -244,9 +248,9 @@ export default function ActivityCenter() {
                     deleteNotification(notifId)
                   }}
                   title="Remove notification"
-                  className="text-slate-300 hover:text-rose-600 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                  className="text-slate-400 hover:text-rose-600 p-2 rounded-lg hover:bg-rose-50 transition-all flex-shrink-0"
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={16} />
                 </button>
               </div>
             )
