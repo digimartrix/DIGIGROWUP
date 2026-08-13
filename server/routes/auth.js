@@ -151,7 +151,18 @@ router.put('/profile', protect, async (req, res, next) => {
       user.email = email;
     }
     if (password) {
+      if (password.length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters.' });
+      }
       user.passwordHash = await bcrypt.hash(password, 12);
+
+      await ActivityLog.create({
+        userId: user._id,
+        userName: user.name,
+        userRole: user.role,
+        action: 'PASSWORD_UPDATED',
+        target: user.name
+      }).catch(() => {});
     }
     await user.save();
 

@@ -64,8 +64,8 @@ export default function SettingsPage() {
     e.preventDefault()
     setSaving(true)
 
-    if (newPassword && newPassword.length < 8) {
-      showToast('New password must be at least 8 characters.', true)
+    if (newPassword && newPassword.length < 6) {
+      showToast('New password must be at least 6 characters.', true)
       setSaving(false)
       return
     }
