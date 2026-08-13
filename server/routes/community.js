@@ -9,6 +9,41 @@ const router = express.Router();
 router.get('/', protect, async (req, res, next) => {
   try {
     const { category } = req.query;
+    const count = await CommunityPost.countDocuments({});
+    
+    // Auto-seed initial engaging discussions if empty
+    if (count === 0) {
+      await CommunityPost.create([
+        {
+          userId: req.user.id,
+          authorName: 'Devanand K. (Lead Architect)',
+          title: '🔥 React 19 Server Actions & Optimistic UI Patterns in Production',
+          content: 'We recently migrated our state management pipelines to use useOptimistic and form actions. What are your thoughts on reducing Redux boilerplate in favor of native React 19 primitives?',
+          category: 'Programming',
+          likes: [req.user.id],
+          savedBy: []
+        },
+        {
+          userId: req.user.id,
+          authorName: 'Priyanka Sen (UX Lead)',
+          title: '💡 Best Practices for CSS Subgrid & Container Queries in 2026',
+          content: 'Sharing our internal design system checklist for responsive card layouts using container queries instead of media queries. How are you handling legacy browser fallbacks?',
+          category: 'UI/UX',
+          likes: [],
+          savedBy: []
+        },
+        {
+          userId: req.user.id,
+          authorName: 'Veda Sarathi V. (Ecosystem Mentor)',
+          title: '🚀 Cracking Machine Coding Rounds: Top 5 Architectural Patterns',
+          content: 'When facing 90-minute live machine coding interviews at Uber or Google, always prioritize state isolation, pure helper functions, and custom debounce hooks. What challenges are you facing in mock interviews?',
+          category: 'Career',
+          likes: [req.user.id],
+          savedBy: [req.user.id]
+        }
+      ]);
+    }
+
     const filter = category ? { category } : {};
     const posts = await CommunityPost.find(filter)
       .sort({ createdAt: -1 })

@@ -24,9 +24,9 @@ router.get('/overview', async (req, res, next) => {
       studentsCount,
       instructorsCount,
       adminsCount,
+      mentorsCount,
       coursesCount,
       enrollmentsCount,
-      mentorsCount,
       transactions,
       registrationsCount,
       certificatesCount,
@@ -35,10 +35,10 @@ router.get('/overview', async (req, res, next) => {
       User.countDocuments({ role: 'student' }),
       User.countDocuments({ role: 'instructor' }),
       User.countDocuments({ role: 'admin' }),
+      User.countDocuments({ role: 'mentor' }),
       Course.countDocuments({}),
       Enrollment.countDocuments({}),
-      Mentor.countDocuments({}),
-      CreditTransaction.find({}).sort({ createdAt: -1 }).limit(10).lean(),
+      CreditTransaction.find({}).populate('userId', 'name email').sort({ createdAt: -1 }).limit(10).lean(),
       EventRegistration.countDocuments({}),
       Certificate.countDocuments({}),
       User.countDocuments({}),
@@ -62,7 +62,12 @@ router.get('/overview', async (req, res, next) => {
     const populatedPopularity = await Promise.all(
       coursePopularity.map(async (cp) => {
         const course = await Course.findById(cp._id).select('title category').lean();
-        return { title: course?.title || 'Unknown', category: course?.category || 'General', count: cp.count };
+        return { 
+          id: cp._id,
+          title: course?.title || 'General Engineering Track', 
+          category: course?.category || 'Web Development', 
+          count: cp.count 
+        };
       })
     );
 
@@ -77,14 +82,22 @@ router.get('/overview', async (req, res, next) => {
         studentsCount,
         instructorsCount,
         adminsCount,
+        mentorsCount: mentorsCount || 0,
         coursesCount,
         enrollmentsCount,
-        mentorsCount,
         registrationsCount,
         certificatesCount,
         creditsEarnedSum: totalCreditsEarned[0]?.total || 0,
         creditsSpentSum: totalCreditsSpent[0]?.total || 0,
-        recentTransactions: transactions,
+        recentTransactions: transactions.map(t => ({
+          _id: t._id,
+          userName: t.userId?.name || 'Platform Member',
+          userEmail: t.userId?.email || '',
+          type: t.type,
+          amount: t.amount,
+          reason: t.reason,
+          createdAt: t.createdAt
+        })),
         coursePopularity: populatedPopularity,
         recentActivityCount,
       }
@@ -108,7 +121,7 @@ router.get('/users', async (req, res, next) => {
     }
 
     const users = await User.find(filter)
-      .select('name email role creditsBalance createdAt')
+      .select('name email role creditsBalance createdAt careerReadinessScore')
       .sort('-createdAt')
       .limit(100)
       .lean();
@@ -151,6 +164,41 @@ router.put('/users/:id/role', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// PUT /api/admin/users/:id/credits — adjust user credits
+router.put('/users/:id/credits', async (req, res, next) => {
+  try {
+    const { amount, reason } = req.body;
+    const adjustAmount = Number(amount);
+    if (isNaN(adjustAmount) || adjustAmount === 0) {
+      return res.status(400).json({ message: 'Valid credit adjustment amount is required.' });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+
+    user.creditsBalance = Math.max(0, user.creditsBalance + adjustAmount);
+    await user.save();
+
+    await CreditTransaction.create({
+      userId: user._id,
+      type: adjustAmount > 0 ? 'EARN' : 'SPEND',
+      amount: Math.abs(adjustAmount),
+      reason: reason || `Administrator credit adjustment by ${req.user.name}`,
+    });
+
+    await ActivityLog.create({
+      userId: req.user.id,
+      userName: req.user.name,
+      userRole: req.user.role,
+      action: 'CREDITS_ADJUSTED',
+      target: user.name,
+      metadata: { email: user.email, adjustedBy: adjustAmount, newBalance: user.creditsBalance },
+    });
+
+    res.json({ message: `Updated ${user.name}'s balance to ${user.creditsBalance} credits.`, creditsBalance: user.creditsBalance });
+  } catch (err) { next(err); }
+});
+
 // DELETE /api/admin/users/:id — delete a user
 router.delete('/users/:id', async (req, res, next) => {
   try {
@@ -173,6 +221,46 @@ router.delete('/users/:id', async (req, res, next) => {
     });
 
     res.json({ message: `User ${user.name} deleted.` });
+  } catch (err) { next(err); }
+});
+
+// ─── COURSES & CONTENT GOVERNANCE ───────────────────────
+
+// GET /api/admin/courses — list all courses with statistics
+router.get('/courses', async (req, res, next) => {
+  try {
+    const courses = await Course.find({}).populate('createdBy', 'name email').sort('-createdAt').lean();
+    const enriched = await Promise.all(courses.map(async (c) => {
+      const enrollmentsCount = await Enrollment.countDocuments({ courseId: c._id });
+      return {
+        ...c,
+        instructorName: c.createdBy?.name || 'DigiGrowUp Specialist',
+        instructorEmail: c.createdBy?.email || '',
+        enrollmentsCount
+      };
+    }));
+    res.json(enriched);
+  } catch (err) { next(err); }
+});
+
+// DELETE /api/admin/courses/:id — delete course by admin
+router.delete('/courses/:id', async (req, res, next) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ message: 'Course not found.' });
+
+    await Course.deleteOne({ _id: course._id });
+    await Enrollment.deleteMany({ courseId: course._id });
+
+    await ActivityLog.create({
+      userId: req.user.id,
+      userName: req.user.name,
+      userRole: req.user.role,
+      action: 'COURSE_DELETED_BY_ADMIN',
+      target: course.title,
+    });
+
+    res.json({ message: `Course "${course.title}" removed.` });
   } catch (err) { next(err); }
 });
 
