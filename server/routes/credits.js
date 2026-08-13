@@ -4,6 +4,7 @@ import Razorpay from 'razorpay';
 import CreditTransaction from '../models/CreditTransaction.js';
 import User from '../models/User.js';
 import ActivityLog from '../models/ActivityLog.js';
+import { sendAutomatedNotification } from '../utils/notify.js';
 import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -214,6 +215,15 @@ export const handleVerifyPayment = async (req, res, next) => {
           target: `Razorpay Top-up: ${creditsToAdd} DigiCredits`,
           metadata: { orderId, paymentId, packageId }
         }).catch(() => {});
+
+        // Automatically dispatch notification to database and Google Apps Script
+        sendAutomatedNotification({
+          userId: user._id,
+          userName: user.name,
+          userEmail: user.email,
+          message: `Razorpay Top-Up Successful: Added ${creditsToAdd} DigiCredits to wallet (Payment ID: ${paymentId}). New Balance: ${user.creditsBalance} credits.`,
+          type: 'reward'
+        });
       }
     }
 
@@ -253,6 +263,15 @@ router.post('/reward', protect, async (req, res, next) => {
       type: 'EARN',
       amount: Number(amount),
       reason
+    });
+
+    // Automatically dispatch notification to database and Google Apps Script
+    sendAutomatedNotification({
+      userId: user._id,
+      userName: user.name,
+      userEmail: user.email,
+      message: `Earned ${amount} DigiCredits: ${reason}. Wallet balance: ${user.creditsBalance} credits.`,
+      type: 'reward'
     });
 
     res.json({ success: true, message: 'Credits rewarded successfully.', creditsBalance: user.creditsBalance });

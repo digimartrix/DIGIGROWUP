@@ -7,6 +7,7 @@ import Enrollment from '../models/Enrollment.js';
 import User from '../models/User.js';
 import CreditTransaction from '../models/CreditTransaction.js';
 import ActivityLog from '../models/ActivityLog.js';
+import { sendAutomatedNotification } from '../utils/notify.js';
 import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -147,6 +148,17 @@ router.post('/:id/enroll', protect, async (req, res, next) => {
       target: courseExists.title,
       metadata: { creditsCost: cost, remainingBalance: user.creditsBalance }
     }).catch(() => {});
+
+    // Automatically send notification to student and Google Apps Script
+    sendAutomatedNotification({
+      userId: user._id,
+      userName: user.name,
+      userEmail: user.email,
+      message: cost > 0
+        ? `Enrolled in "${courseExists.title}" (Cost: ${cost} DigiCredits). Remaining balance: ${user.creditsBalance} credits.`
+        : `Enrolled in starter track "${courseExists.title}" successfully!`,
+      type: 'reward'
+    });
 
     res.json({
       success: true,

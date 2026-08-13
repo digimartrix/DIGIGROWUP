@@ -5,6 +5,7 @@ import MasteryScore from '../models/MasteryScore.js';
 import Enrollment from '../models/Enrollment.js';
 import Lesson from '../models/Lesson.js';
 import ActivityLog from '../models/ActivityLog.js';
+import { sendAutomatedNotification } from '../utils/notify.js';
 import { protect } from '../middleware/auth.js';
 import { computeNextAction } from './mastery.js';
 
@@ -49,6 +50,15 @@ router.post('/:id/submit', protect, async (req, res, next) => {
 
     // Log quiz submission
     ActivityLog.create({ userId: req.user.id, userName: req.user.name, userRole: req.user.role, action: 'QUIZ_SUBMITTED', target: `Quiz (score: ${score}%)`, metadata: { quizId: quiz._id, score } }).catch(() => {});
+
+    // Automatically send notification
+    sendAutomatedNotification({
+      userId: req.user.id,
+      userName: req.user.name,
+      userEmail: req.user.email,
+      message: `Completed assessment with score of ${score}% (${correct}/${quiz.questions.length} correct). Mastery profile updated.`,
+      type: score >= 70 ? 'reward' : 'alert'
+    });
 
     // Calculate per-topic quiz scores
     const topicMap = {};

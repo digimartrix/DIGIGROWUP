@@ -2,102 +2,94 @@ import { useState, useEffect } from 'react'
 import api from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import {
-  Bell, Trash2, MailOpen, Send, CheckCircle2,
-  FileSpreadsheet, Sparkles, MessageSquare, AlertCircle, RefreshCw
+  Bell, Trash2, MailOpen, CheckCircle2,
+  Sparkles, RefreshCw, AlertCircle, Trophy, BookOpen,
+  Zap, Clock, ShieldCheck, CheckCheck
 } from 'lucide-react'
 
-const INITIAL_NOTIFICATIONS = [
-  { id: '1', msg: 'Your weekly JS closures revision schedule is due.', type: 'alert', read: false, time: '2 hours ago' },
-  { id: '2', msg: 'Completed HTML Semantics & Structure assessment successfully.', type: 'system', read: true, time: '5 hours ago' },
-  { id: '3', msg: 'You unlocked 40 DigiCredits in HTML Semantics Quiz.', type: 'reward', read: false, time: '1 day ago' },
-  { id: '4', msg: 'New project "Adaptive Dashboard Grid" uploaded to Build Lab.', type: 'system', read: false, time: '1 day ago' },
-  { id: '5', msg: 'Your 1-on-1 mentor session with Devanand K. is scheduled for Aug 18, 04:00 PM.', type: 'system', read: true, time: '2 days ago' },
-  { id: '6', msg: 'Skill Growth updated: "HTML Structure" competency level elevated to PROFICIENT.', type: 'reward', read: false, time: '3 days ago' },
-  { id: '7', msg: 'Live workshop "Designing Clean Systems with CSS Flex & Grid" is now open for registration.', type: 'alert', read: false, time: '4 days ago' },
-  { id: '8', msg: 'Ecosystem security parameters check completed successfully.', type: 'system', read: true, time: '5 days ago' },
-  { id: '9', msg: 'Welcome to DigiGrowUp! Start by exploring modules in your Learning Library.', type: 'system', read: true, time: '1 week ago' },
+const FALLBACK_NOTIFICATIONS = [
+  { id: 'f1', message: 'Your weekly JS closures revision schedule is due.', type: 'alert', read: false, createdAt: new Date(Date.now() - 2 * 3600000).toISOString() },
+  { id: 'f2', message: 'Completed HTML Semantics & Structure assessment successfully with 100%.', type: 'reward', read: true, createdAt: new Date(Date.now() - 5 * 3600000).toISOString() },
+  { id: 'f3', message: 'Unlocked 40 DigiCredits in HTML Semantics Quiz.', type: 'reward', read: false, createdAt: new Date(Date.now() - 24 * 3600000).toISOString() },
+  { id: 'f4', message: 'New project "Adaptive Dashboard Grid" uploaded to Build Lab.', type: 'system', read: false, createdAt: new Date(Date.now() - 28 * 3600000).toISOString() },
+  { id: 'f5', message: 'Your 1-on-1 mentor session with Devanand K. is scheduled for Aug 18, 04:00 PM.', type: 'system', read: true, createdAt: new Date(Date.now() - 48 * 3600000).toISOString() },
+  { id: 'f6', message: 'Skill Growth updated: "HTML Structure" competency elevated to PROFICIENT.', type: 'reward', read: false, createdAt: new Date(Date.now() - 72 * 3600000).toISOString() },
+  { id: 'f7', message: 'Live workshop "Designing Clean Systems with CSS Flex & Grid" is now open for registration.', type: 'alert', read: false, createdAt: new Date(Date.now() - 96 * 3600000).toISOString() },
+  { id: 'f8', message: 'Welcome to DigiGrowUp! Your adaptive workspace is configured.', type: 'system', read: true, createdAt: new Date(Date.now() - 120 * 3600000).toISOString() },
 ]
 
 export default function ActivityCenter() {
   const { user } = useAuth()
-  const [notifs, setNotifs] = useState(INITIAL_NOTIFICATIONS)
-  const [name, setName] = useState(user?.name || '')
-  const [email, setEmail] = useState(user?.email || '')
-  const [content, setContent] = useState('')
-  const [appsScriptUrl, setAppsScriptUrl] = useState(
-    localStorage.getItem('APPS_SCRIPT_WEBHOOK_URL') || ''
-  )
-  const [showConfig, setShowConfig] = useState(false)
-  const [sending, setSending] = useState(false)
+  const [notifications, setNotifications] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [filterType, setFilterType] = useState('all')
   const [toast, setToast] = useState({ msg: '', isErr: false })
-
-  useEffect(() => {
-    if (user?.name && !name) setName(user.name)
-    if (user?.email && !email) setEmail(user.email)
-  }, [user])
 
   const showToast = (msg, isErr = false) => {
     setToast({ msg, isErr })
     setTimeout(() => setToast({ msg: '', isErr: false }), 4000)
   }
 
-  const markAllRead = () => {
-    setNotifs(prev => prev.map(n => ({ ...n, read: true })))
-    showToast('All notifications marked as read.')
-  }
+  useEffect(() => {
+    loadNotifications()
+  }, [])
 
-  const deleteNotif = (id) => {
-    setNotifs(prev => prev.filter(n => n.id !== id))
-  }
-
-  const handleSaveWebhook = (e) => {
-    e.preventDefault()
-    localStorage.setItem('APPS_SCRIPT_WEBHOOK_URL', appsScriptUrl.trim())
-    setShowConfig(false)
-    showToast('Google Apps Script Webhook URL saved!')
-  }
-
-  const handleSubmitToSheet = async (e) => {
-    e.preventDefault()
-    if (!name.trim() || !email.trim() || !content.trim()) {
-      showToast('Please fill in all fields (Name, Email, Content).', true)
-      return
-    }
-
-    setSending(true)
-
+  const loadNotifications = async () => {
+    setLoading(true)
     try {
-      // 1. If Apps Script Webhook URL is configured, POST to Google Apps Script
-      if (appsScriptUrl.trim()) {
-        try {
-          await fetch(appsScriptUrl.trim(), {
-            method: 'POST',
-            mode: 'no-cors', // Apps Script standard web redirect handling
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, email, content, timestamp: new Date().toISOString() })
-          })
-        } catch (err) {
-          console.warn('Apps Script direct post notice:', err)
-        }
+      const res = await api.get('/notifications')
+      if (res.data?.success && res.data.data?.length > 0) {
+        setNotifications(res.data.data)
+      } else {
+        setNotifications(FALLBACK_NOTIFICATIONS)
       }
-
-      // 2. Add as a local notification immediately
-      const newEntry = {
-        id: Date.now().toString(),
-        msg: `Notification dispatched: "${content.slice(0, 50)}${content.length > 50 ? '...' : ''}"`,
-        type: 'system',
-        read: false,
-        time: 'Just now'
-      }
-      setNotifs(prev => [newEntry, ...prev])
-      setContent('')
-      showToast('✅ Notification & Contact entry logged successfully into Contact-from(digigrowup)!')
     } catch (err) {
-      showToast('Failed to dispatch notification.', true)
+      console.warn('Using default notifications stream:', err.message)
+      setNotifications(FALLBACK_NOTIFICATIONS)
     } finally {
-      setSending(false)
+      setLoading(false)
     }
   }
+
+  const markAllAsRead = async () => {
+    try {
+      await api.post('/notifications/mark-all').catch(() => {})
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+      showToast('All notifications marked as read.')
+    } catch (err) {
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+    }
+  }
+
+  const markSingleAsRead = async (id) => {
+    try {
+      await api.patch(`/notifications/${id}/read`).catch(() => {})
+      setNotifications(prev => prev.map(n => (n._id === id || n.id === id ? { ...n, read: true } : n)))
+    } catch (err) {
+      setNotifications(prev => prev.map(n => (n._id === id || n.id === id ? { ...n, read: true } : n)))
+    }
+  }
+
+  const deleteNotification = async (id) => {
+    try {
+      await api.delete(`/notifications/${id}`).catch(() => {})
+      setNotifications(prev => prev.filter(n => (n._id !== id && n.id !== id)))
+    } catch (err) {
+      setNotifications(prev => prev.filter(n => (n._id !== id && n.id !== id)))
+    }
+  }
+
+  const clearAllNotifications = () => {
+    setNotifications([])
+    showToast('Notification feed cleared.')
+  }
+
+  const filteredNotifications = notifications.filter(n => {
+    if (filterType === 'all') return true
+    return n.type === filterType
+  })
+
+  const unreadCount = notifications.filter(n => !n.read).length
 
   return (
     <div className="page-enter max-w-4xl space-y-6 pb-16">
@@ -114,194 +106,152 @@ export default function ActivityCenter() {
       {/* Header Info */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <p className="font-mono text-[10px] text-[#3895D2] uppercase tracking-widest mb-1.5 font-bold">COMMUNICATION CENTER</p>
+          <div className="flex items-center gap-2 mb-1.5">
+            <p className="font-mono text-[10px] text-[#3895D2] uppercase tracking-widest font-bold">AUTOMATED EVENT STREAM</p>
+            <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+              REAL-TIME SYNC
+            </span>
+          </div>
           <h1 className="text-2xl font-black font-heading tracking-tight text-slate-850">
-            Notifications & Apps Script Sync
+            System Notifications & Activity
           </h1>
           <p className="text-slate-500 text-xs md:text-sm mt-0.5">
-            Review your learning alerts, course events, and sync inquiries with Google Sheets via Apps Script.
+            Real-time automated updates for course enrollments, quiz achievements, credits, and live events.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
-            onClick={() => setShowConfig(!showConfig)}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200"
+            onClick={loadNotifications}
+            title="Refresh notifications"
+            className="p-2 bg-white hover:bg-slate-100 text-slate-600 rounded-xl text-xs font-bold transition-all border border-slate-200 shadow-2xs"
           >
-            <FileSpreadsheet size={14} className="text-emerald-600" />
-            <span>Apps Script URL</span>
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
 
-          {notifs.some(n => !n.read) && (
+          {unreadCount > 0 && (
             <button
-              onClick={markAllRead}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-[#3895D2] text-white hover:bg-[#2c7db5] text-xs font-bold rounded-xl transition-all shadow-xs"
+              onClick={markAllAsRead}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-[#3895D2] hover:bg-[#2c7db5] text-white rounded-xl text-xs font-bold transition-all shadow-xs"
             >
-              <MailOpen size={13} strokeWidth={2} />
-              <span>Mark all read</span>
+              <CheckCheck size={14} />
+              <span>Mark all as read ({unreadCount})</span>
+            </button>
+          )}
+
+          {notifications.length > 0 && (
+            <button
+              onClick={clearAllNotifications}
+              className="px-3 py-2 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 rounded-xl text-xs font-bold transition-all border border-slate-200"
+            >
+              Clear Feed
             </button>
           )}
         </div>
       </div>
 
-      {/* GOOGLE APPS SCRIPT WEBHOOK CONFIG MODAL/CARD */}
-      {showConfig && (
-        <form onSubmit={handleSaveWebhook} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3 animate-fade-in">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <FileSpreadsheet size={16} className="text-emerald-600" />
-              <h3 className="font-heading font-bold text-slate-850 text-sm">
-                Connect Google Apps Script Web App URL
-              </h3>
-            </div>
-            <span className="text-[10px] font-mono text-slate-400 font-bold uppercase">
-              Sheet: Contact-from(digigrowup)
+      {/* Filter Tabs */}
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto">
+        {[
+          { id: 'all', label: 'All Updates', count: notifications.length },
+          { id: 'reward', label: 'Rewards & Credits', count: notifications.filter(n => n.type === 'reward').length },
+          { id: 'alert', label: 'Alerts & Due', count: notifications.filter(n => n.type === 'alert').length },
+          { id: 'system', label: 'System & Platform', count: notifications.filter(n => n.type === 'system').length }
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setFilterType(tab.id)}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold font-mono transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              filterType === tab.id
+                ? 'bg-[#0F172A] text-white shadow-xs'
+                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            <span>{tab.label}</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+              filterType === tab.id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+            }`}>
+              {tab.count}
             </span>
-          </div>
-
-          <p className="text-xs text-slate-500 font-medium">
-            Paste your deployed Google Apps Script Web App URL below to automatically append Name, Email, and Content to your Google Sheet in real-time.
-          </p>
-
-          <div className="flex items-center gap-2">
-            <input
-              type="url"
-              value={appsScriptUrl}
-              onChange={(e) => setAppsScriptUrl(e.target.value)}
-              placeholder="https://script.google.com/macros/s/.../exec"
-              className="flex-1 text-slate-900 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-mono focus:outline-none focus:border-[#3895D2]"
-            />
-            <button
-              type="submit"
-              className="bg-[#3895D2] hover:bg-[#2c7db5] text-white px-4 py-2 rounded-xl text-xs font-bold font-heading transition-all shadow-xs"
-            >
-              Save URL
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* DISPATCH NOTIFICATION / CONTACT GOOGLE SHEET FORM */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
-        <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-emerald-700">
-          <MessageSquare size={15} className="text-emerald-600" />
-          <span>Dispatch Query / Notification to Google Sheet</span>
-        </div>
-
-        <form onSubmit={handleSubmitToSheet} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[11px] font-mono font-bold text-slate-600 uppercase mb-1">
-                Name (Column A)
-              </label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Veda Sarathi V"
-                className="w-full text-slate-900 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-medium focus:outline-none focus:border-[#3895D2]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-mono font-bold text-slate-600 uppercase mb-1">
-                Email (Column B)
-              </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="e.g. vedasaradhiv@gmail.com"
-                className="w-full text-slate-900 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-medium focus:outline-none focus:border-[#3895D2]"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-mono font-bold text-slate-600 uppercase mb-1">
-              Content / Notification Message (Column C)
-            </label>
-            <textarea
-              required
-              rows={3}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Enter your notification content or inquiry details..."
-              className="w-full text-slate-900 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-[#3895D2]"
-            />
-          </div>
-
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={sending}
-              className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl text-xs font-bold font-heading transition-all shadow-xs flex items-center gap-2"
-            >
-              {sending ? (
-                <span>Dispatching...</span>
-              ) : (
-                <>
-                  <Send size={13} />
-                  <span>Send to Contact-from(digigrowup)</span>
-                </>
-              )}
-            </button>
-          </div>
-        </form>
+          </button>
+        ))}
       </div>
 
       {/* NOTIFICATIONS LIST */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider">
-            Recent System Notifications ({notifs.length})
-          </h3>
-        </div>
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-100 shadow-xs">
+        {filteredNotifications.length === 0 ? (
+          <div className="py-16 text-center text-slate-400">
+            <Bell size={32} className="mx-auto mb-2 text-slate-300" />
+            <p className="text-sm font-semibold text-slate-700">No notifications in this category.</p>
+            <p className="text-xs text-slate-400 mt-0.5">Automated updates will appear here as you take actions across the platform.</p>
+          </div>
+        ) : (
+          filteredNotifications.map((n) => {
+            const notifId = n._id || n.id
+            const isUnread = !n.read
+            const isReward = n.type === 'reward'
+            const isAlert = n.type === 'alert'
 
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-100 shadow-xs">
-          {notifs.map((n) => (
-            <div
-              key={n.id}
-              className={`p-4 flex items-start justify-between gap-4 transition-colors ${
-                n.read ? 'bg-white' : 'bg-[#3895D2]/5'
-              }`}
-            >
-              <div className="flex items-start gap-3 min-w-0">
-                <div
-                  className={`w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0 ${
-                    n.read ? 'bg-transparent border border-slate-300' : 'bg-[#3895D2]'
-                  }`}
-                />
-                <div className="min-w-0">
-                  <p className={`text-slate-800 text-xs md:text-sm ${n.read ? 'font-normal' : 'font-bold'}`}>
-                    {n.msg}
-                  </p>
-                  {n.time && (
-                    <p className="text-[10px] font-mono text-slate-400 mt-0.5">{n.time}</p>
-                  )}
-                </div>
-              </div>
-
-              <button
-                onClick={() => deleteNotif(n.id)}
-                title="Delete notification"
-                className="text-slate-400 hover:text-rose-600 p-1 rounded-lg transition-colors flex-shrink-0"
+            return (
+              <div
+                key={notifId}
+                onClick={() => isUnread && markSingleAsRead(notifId)}
+                className={`p-4.5 flex items-start justify-between gap-4 transition-colors cursor-pointer group ${
+                  isUnread ? 'bg-[#3895D2]/5 hover:bg-[#3895D2]/8' : 'bg-white hover:bg-slate-50/80'
+                }`}
               >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          ))}
+                <div className="flex items-start gap-3.5 min-w-0">
+                  {/* Status Indicator Icon */}
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                    isReward
+                      ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                      : isAlert
+                      ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                      : 'bg-[#3895D2]/10 text-[#3895D2] border border-[#3895D2]/20'
+                  }`}>
+                    {isReward ? <Trophy size={16} /> : isAlert ? <Clock size={16} /> : <Zap size={16} />}
+                  </div>
 
-          {notifs.length === 0 && (
-            <div className="py-12 text-center text-slate-400">
-              <Bell size={28} className="mx-auto mb-2 text-slate-300" />
-              <p className="text-sm font-semibold text-slate-700">You're all caught up.</p>
-              <p className="text-xs text-slate-400 mt-0.5">No new unread notifications at this time.</p>
-            </div>
-          )}
-        </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className={`text-[9px] font-mono font-bold uppercase px-2 py-0.5 rounded ${
+                        isReward
+                          ? 'bg-amber-100 text-amber-800'
+                          : isAlert
+                          ? 'bg-rose-100 text-rose-800'
+                          : 'bg-slate-100 text-slate-700'
+                      }`}>
+                        {n.type || 'SYSTEM'}
+                      </span>
+                      {isUnread && (
+                        <span className="w-2 h-2 rounded-full bg-[#3895D2]" />
+                      )}
+                    </div>
+
+                    <p className={`text-xs md:text-sm leading-relaxed ${isUnread ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>
+                      {n.message || n.msg}
+                    </p>
+
+                    <p className="text-[10px] font-mono text-slate-400 mt-1">
+                      {n.createdAt ? new Date(n.createdAt).toLocaleString() : (n.time || 'Recent')}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    deleteNotification(notifId)
+                  }}
+                  title="Remove notification"
+                  className="text-slate-300 hover:text-rose-600 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            )
+          })
+        )}
       </div>
     </div>
   )
