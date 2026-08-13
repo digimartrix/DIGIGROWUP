@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Eye, EyeOff, AlertCircle, Sparkles, BookOpen, Brain, Trophy, Volume2, ShieldCheck, Mail, Lock, UserCheck, Shield } from 'lucide-react'
+import { Eye, EyeOff, AlertCircle, Sparkles, BookOpen, Brain, Trophy, Volume2, ShieldCheck, Mail, Lock, UserCheck, ArrowRight, CheckCircle2 } from 'lucide-react'
 import api from '../lib/api'
 import Lottie from 'lottie-react'
 import { playLoudClearVoice } from '../lib/speech'
@@ -21,8 +21,9 @@ const DEMO_ROLES = [
     label: 'Administrator',
     icon: ShieldCheck,
     color: '#EA4532',
-    bg: 'bg-rose-500/10',
-    border: 'border-rose-500/30',
+    bg: 'bg-rose-50',
+    border: 'border-rose-200',
+    activeBg: 'bg-rose-600 text-white',
     email: 'admin@digimartrix.com',
     password: 'Admin123!',
     desc: 'Platform governance, logs & user management'
@@ -31,9 +32,10 @@ const DEMO_ROLES = [
     id: 'instructor',
     label: 'Instructor',
     icon: BookOpen,
-    color: '#E8A33D',
-    bg: 'bg-amber-500/10',
-    border: 'border-amber-500/30',
+    color: '#D97706',
+    bg: 'bg-amber-50',
+    border: 'border-amber-200',
+    activeBg: 'bg-amber-500 text-white',
     email: 'instructor@digimartrix.com',
     password: 'Instructor123!',
     desc: 'Author courses, modules, lessons & quizzes'
@@ -42,9 +44,10 @@ const DEMO_ROLES = [
     id: 'student',
     label: 'Student',
     icon: UserCheck,
-    color: '#3895D2',
-    bg: 'bg-sky-500/10',
-    border: 'border-sky-500/30',
+    color: '#0284C7',
+    bg: 'bg-sky-50',
+    border: 'border-sky-200',
+    activeBg: 'bg-[#3895D2] text-white',
     email: 'vedasaradhiv@gmail.com',
     password: '',
     desc: 'Interactive courses, labs & AI tutoring'
@@ -53,7 +56,7 @@ const DEMO_ROLES = [
 
 export default function Login() {
   const [form, setForm] = useState({ email: 'vedasaradhiv@gmail.com', password: '' })
-  const [selectedRole, setSelectedRole] = useState('admin')
+  const [selectedRole, setSelectedRole] = useState('student')
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -62,30 +65,12 @@ export default function Login() {
   
   const { login } = useAuth()
   const navigate = useNavigate()
-  const cardRef = useRef(null)
 
   useEffect(() => {
     fetch('/DIGIMARTRIX_Robo.json')
       .then(res => res.json())
       .then(data => setAnimationData(data))
       .catch(err => console.error("Error loading robo animation:", err))
-  }, [])
-
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (!cardRef.current) return
-      const rect = cardRef.current.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      const y = e.clientY - rect.top
-      cardRef.current.style.setProperty('--mouse-x', `${x}px`)
-      cardRef.current.style.setProperty('--mouse-y', `${y}px`)
-    }
-
-    const card = cardRef.current
-    if (card) {
-      card.addEventListener('mousemove', handleMouseMove)
-      return () => card.removeEventListener('mousemove', handleMouseMove)
-    }
   }, [])
 
   const speakThought = (textToSpeak) => {
@@ -133,80 +118,57 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 md:p-8 lg:p-12 relative overflow-hidden" 
-      style={{ background: 'linear-gradient(135deg, #070913 0%, #0B0F19 50%, #150E2E 100%)' }}>
-      
-      {/* Dynamic Background floating particles */}
-      <div className="absolute top-[10%] left-[5%] w-72 h-72 rounded-full bg-[#3895D2]/10 blur-[80px] animate-pulse pointer-events-none" />
-      <div className="absolute bottom-[10%] right-[5%] w-80 h-80 rounded-full bg-[#EA4532]/10 blur-[100px] animate-pulse pointer-events-none" style={{ animationDelay: '2s' }} />
+    <div className="min-h-screen flex items-center justify-center p-4 md:p-8 bg-slate-50 relative overflow-hidden">
+      {/* Soft elegant background accents */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-sky-100/60 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-amber-100/50 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Main Container Card (Expanded width: max-w-6xl, min-h-[600px]) */}
-      <div 
-        ref={cardRef}
-        className="w-full max-w-6xl min-h-[600px] bg-white/[0.01] backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col lg:flex-row relative transition-all duration-300 hover:border-white/15"
-        style={{
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
-        }}
-      >
-        {/* Dynamic interactive gradient cursor glow */}
-        <div 
-          className="absolute inset-0 opacity-40 pointer-events-none transition-opacity duration-300"
-          style={{
-            background: `radial-gradient(400px circle at var(--mouse-x, 0) var(--mouse-y, 0), rgba(56, 149, 210, 0.08), transparent 80%)`
-          }}
-        />
-
-        {/* Subtle decorative glowing borders */}
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[#3895D2] via-[#EA4532] to-[#3895D2]" />
-
-        {/* Left Side: Robot + Immersive Interactive Graphics */}
-        <div className="w-full lg:w-[48%] p-8 lg:p-12 border-b lg:border-b-0 lg:border-r border-white/10 flex flex-col justify-between gap-6 relative overflow-hidden bg-white/[0.01]">
+      {/* Main Container Card */}
+      <div className="w-full max-w-5xl bg-white border border-slate-200/90 rounded-3xl shadow-xl shadow-slate-200/60 overflow-hidden flex flex-col lg:flex-row relative z-10">
+        
+        {/* Left Side: Brand Showcase + Interactive Robot Mascot */}
+        <div className="w-full lg:w-[46%] p-8 lg:p-12 border-b lg:border-b-0 lg:border-r border-slate-100 flex flex-col justify-between gap-6 bg-slate-50/60">
           
           {/* Logo & Header */}
-          <div className="relative z-10">
+          <div>
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-11 h-11 rounded-xl border border-white/15 flex items-center justify-center overflow-hidden bg-white/5 backdrop-blur-sm shadow-lg hover:scale-105 transition-transform duration-200">
+              <div className="w-11 h-11 rounded-2xl border border-slate-200 bg-white flex items-center justify-center shadow-xs">
                 <img src="/favicon_circle.png" alt="Digimartrix Logo" className="w-full h-full object-contain p-1" />
               </div>
               <div className="flex flex-col">
-                <span className="font-heading font-black text-base tracking-wide leading-none">
+                <span className="font-heading font-black text-base tracking-wide leading-none text-slate-900">
                   <span className="text-[#3895D2]">DIGI</span>
                   <span className="text-[#EA4532]">GROWUP</span>
                 </span>
-                <span className="font-mono text-white/40 text-[8px] tracking-[0.2em] mt-1 font-bold">MULTI-ROLE ECOSYSTEM</span>
+                <span className="font-mono text-slate-600 text-[9px] tracking-wider mt-1 font-bold">NEXT-GEN LEARNING</span>
               </div>
             </div>
 
-            <h1 className="text-3xl lg:text-4xl font-heading font-black text-white mb-2 leading-tight">
-              Your multi-role{' '}
-              <span className="bg-gradient-to-r from-[#3895D2] via-[#E8A33D] to-[#EA4532] bg-clip-text text-transparent animate-shimmer">command portal</span>{' '}
-              awaits.
+            <h1 className="text-2xl lg:text-3xl font-heading font-black text-slate-900 mb-2 leading-tight tracking-tight">
+              Sign in to your learning workspace.
             </h1>
-            <p className="text-white/50 text-xs md:text-sm leading-relaxed">
-              Sign in as an <strong className="text-[#EA4532]">Administrator</strong> for governance, <strong className="text-[#E8A33D]">Instructor</strong> for real-time course authoring, or <strong className="text-[#3895D2]">Student</strong> for interactive learning.
+            <p className="text-slate-600 text-xs md:text-sm leading-relaxed font-medium">
+              Access interactive programming courses, real-time code labs, mentor sessions, and course authoring tools.
             </p>
           </div>
 
-          {/* Interactive Robot (Clickable with Speech Synthesis & Micro-animations) */}
-          <div className="relative z-10 flex flex-col items-center my-2 group">
+          {/* Interactive Mascot & Speech Bubble */}
+          <div className="flex flex-col items-center my-2 group">
             {/* Thought bubble */}
-            <div 
+            <button
+              type="button"
               onClick={handleRoboClick}
-              className="relative cursor-pointer mb-3 px-4 py-2.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-bold shadow-xl transition-all duration-300 hover:scale-105 hover:bg-white/15 hover:border-white/30 text-center max-w-[280px]"
-              style={{ animation: 'thoughtFloat 3s ease-in-out infinite' }}
-              title="Click to hear robo's thought!"
+              className="cursor-pointer mb-3 px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-slate-800 text-xs font-bold shadow-xs hover:shadow-md hover:border-[#3895D2]/40 transition-all flex items-center gap-2 max-w-[280px] text-center"
             >
-              <div className="flex items-center justify-center gap-1.5">
-                <span>{THOUGHTS[thoughtIdx]}</span>
-                <Volume2 size={13} className="text-[#3895D2] flex-shrink-0 animate-pulse" />
-              </div>
-              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-white/10 border-b border-r border-white/20 rotate-45" />
-            </div>
+              <span>{THOUGHTS[thoughtIdx]}</span>
+              <Volume2 size={15} className="text-[#3895D2] flex-shrink-0 animate-pulse" />
+            </button>
 
             {/* Robot Animation */}
             <div 
               onClick={handleRoboClick}
-              className="w-40 h-40 relative cursor-pointer transform transition-transform duration-300 group-hover:scale-105 group-active:scale-95"
+              className="w-36 h-36 relative cursor-pointer transform transition-transform duration-300 group-hover:scale-105"
+              title="Click to talk with DigiRobot!"
             >
               {animationData ? (
                 <Lottie animationData={animationData} loop={true} className="w-full h-full" />
@@ -216,174 +178,146 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Interactive Feature Pills */}
-          <div className="relative z-10 flex flex-wrap gap-2 justify-center lg:justify-start">
+          {/* Feature Badges */}
+          <div className="grid grid-cols-2 gap-2">
             {[
-              { icon: ShieldCheck, label: 'Admin Governance', color: '#EA4532' },
-              { icon: BookOpen, label: 'Instructor Studio', color: '#E8A33D' },
-              { icon: Trophy, label: 'Student Mastery', color: '#3895D2' },
-              { icon: Brain, label: 'AI Mentorship', color: '#8B5CF6' },
-            ].map(({ icon: Icon, label, color }) => (
+              { icon: BookOpen, label: 'Interactive Tracks', text: 'Real-time Coding' },
+              { icon: ShieldCheck, label: 'Verified Certificates', text: 'Skill Badges' },
+            ].map(({ icon: Icon, label, text }) => (
               <div 
                 key={label} 
-                className="flex items-center gap-1.5 bg-white/5 backdrop-blur-sm border border-white/10 rounded-full px-3 py-1.5 text-white/70 text-[10px] font-bold font-mono uppercase tracking-wider hover:bg-white/[0.08] transition-all"
+                className="bg-white border border-slate-200 rounded-xl p-2.5 shadow-2xs"
               >
-                <Icon size={12} style={{ color }} />
-                {label}
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-800">
+                  <Icon size={13} className="text-[#3895D2]" />
+                  <span>{label}</span>
+                </div>
+                <p className="text-[10px] text-slate-600 mt-0.5 font-medium">{text}</p>
               </div>
             ))}
           </div>
         </div>
 
         {/* Right Side: Role Selector & Login Form */}
-        <div className="flex-1 p-8 lg:p-12 flex flex-col justify-center bg-white/[0.005]">
-          <div className="w-full max-w-[420px] mx-auto page-enter">
+        <div className="flex-1 p-8 lg:p-12 flex flex-col justify-center bg-white">
+          <div className="w-full max-w-md mx-auto page-enter">
             
             <div className="mb-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-heading font-black text-white tracking-tight">Sign In</h2>
-                <span className="text-[10px] font-mono font-bold uppercase px-2.5 py-1 rounded-full border bg-white/5 border-white/15 text-white/70">
-                  Select Role Portal
-                </span>
-              </div>
-              <p className="text-white/45 text-xs mt-1">
-                New to the platform?{' '}
-                <Link to="/register" className="text-[#3895D2] font-black hover:text-[#3895D2]/80 transition-colors underline decoration-2 underline-offset-4">
-                  Create account & choose role
+              <h2 className="text-2xl font-heading font-black text-slate-900 tracking-tight">Sign In</h2>
+              <p className="text-slate-500 text-xs mt-1 font-medium">
+                New to DigiGrowUp?{' '}
+                <Link to="/register" className="text-[#3895D2] font-bold hover:underline">
+                  Create a free account
                 </Link>
               </p>
             </div>
 
-            {/* 1-Click Role Portal Switcher / Quick Demo Credentials */}
-            <div className="mb-6 space-y-2">
-              <label className="block text-white/50 text-[10px] font-mono uppercase font-bold tracking-wider">
-                Quick Role Credentials Selector:
+            {/* Role Quick Selector */}
+            <div className="mb-6">
+              <label className="block text-[11px] font-mono font-bold text-slate-700 uppercase mb-2">
+                Select Your Role Portal
               </label>
               <div className="grid grid-cols-3 gap-2">
-                {DEMO_ROLES.map((r) => {
-                  const Icon = r.icon
-                  const isCurrent = selectedRole === r.id
+                {DEMO_ROLES.map((roleItem) => {
+                  const Icon = roleItem.icon
+                  const isSelected = selectedRole === roleItem.id
                   return (
                     <button
-                      key={r.id}
                       type="button"
-                      onClick={() => handleSelectRole(r)}
-                      className={`p-2.5 rounded-xl border text-left transition-all duration-200 flex flex-col items-center text-center gap-1 ${
-                        isCurrent
-                          ? `${r.bg} ${r.border} ring-1 ring-white/20 shadow-md`
-                          : 'bg-white/5 border-white/10 hover:bg-white/[0.08] hover:border-white/15 opacity-70 hover:opacity-100'
+                      key={roleItem.id}
+                      onClick={() => handleSelectRole(roleItem)}
+                      className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center gap-1.5 ${
+                        isSelected
+                          ? 'border-[#0F172A] bg-[#0F172A] text-white shadow-md'
+                          : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
                       }`}
                     >
-                      <Icon size={16} style={{ color: r.color }} />
-                      <span className="text-xs font-bold text-white leading-none mt-0.5">{r.label}</span>
-                      <span className="text-[8px] font-mono text-white/40 uppercase">Portal</span>
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                        isSelected ? 'bg-white/20 text-white' : `${roleItem.bg} text-slate-800`
+                      }`}>
+                        <Icon size={16} />
+                      </div>
+                      <span className="text-xs font-heading font-bold">{roleItem.label}</span>
                     </button>
                   )
                 })}
               </div>
             </div>
 
+            {/* Error Message */}
             {error && (
-              <div className="flex items-start gap-3 bg-[#EA4532]/10 border border-[#EA4532]/20 rounded-2xl px-4 py-3 mb-5">
-                <AlertCircle size={16} strokeWidth={1.5} className="text-[#EA4532] mt-0.5 flex-shrink-0" />
-                <p className="text-[#EA4532] text-xs leading-relaxed">{error}</p>
+              <div className="mb-5 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2.5 font-medium animate-fade-in">
+                <AlertCircle size={16} className="flex-shrink-0" />
+                <span>{error}</span>
               </div>
             )}
 
+            {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
-              
-              {/* Interactive Email field with icon wrapper */}
               <div>
-                <label className="block text-white/50 text-xs font-bold mb-1.5">Email Address</label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-white/30 group-focus-within:text-[#3895D2] transition-colors">
-                    <Mail size={16} />
-                  </div>
+                <label className="block text-[11px] font-mono font-bold text-slate-700 uppercase mb-1.5">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail size={16} className="absolute left-3.5 top-3 text-slate-400" />
                   <input
-                    id="email"
                     type="email"
-                    autoComplete="email"
-                    value={form.email}
-                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                    placeholder="you@example.com"
                     required
-                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-11 pr-4 py-2.5 text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-[#3895D2]/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-[#3895D2]/10 transition-all font-body"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    placeholder="Enter your email"
+                    className="w-full text-slate-900 bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs md:text-sm font-medium focus:bg-white focus:outline-none focus:border-[#3895D2] focus:ring-2 focus:ring-[#3895D2]/15 transition-all"
                   />
                 </div>
               </div>
 
-              {/* Interactive Password field with icon wrapper */}
               <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <label className="text-white/50 text-xs font-bold">Password</label>
-                  <a href="#forgot" onClick={(e) => { e.preventDefault(); alert("Admin password: Admin123! | Instructor: Instructor123! | Or your registered password."); }} className="text-xs text-white/30 hover:text-white/60 transition-colors">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[11px] font-mono font-bold text-slate-700 uppercase">
+                    Password
+                  </label>
+                  <Link to="/settings" className="text-[11px] font-medium text-slate-600 hover:text-[#3895D2]">
                     Need Help?
-                  </a>
+                  </Link>
                 </div>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-white/30 group-focus-within:text-[#3895D2] transition-colors">
-                    <Lock size={16} />
-                  </div>
+                <div className="relative">
+                  <Lock size={16} className="absolute left-3.5 top-3 text-slate-400" />
                   <input
-                    id="password"
                     type={showPw ? 'text' : 'password'}
-                    autoComplete="current-password"
-                    value={form.password}
-                    onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                    placeholder="••••••••"
                     required
-                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-11 pr-11 py-2.5 text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-[#3895D2]/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-[#3895D2]/10 transition-all font-body"
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    placeholder="••••••••••••"
+                    className="w-full text-slate-900 bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-xs md:text-sm font-medium focus:bg-white focus:outline-none focus:border-[#3895D2] focus:ring-2 focus:ring-[#3895D2]/15 transition-all"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPw(v => !v)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                    onClick={() => setShowPw(!showPw)}
+                    className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600"
                   >
-                    {showPw ? <EyeOff size={16} strokeWidth={1.5} /> : <Eye size={16} strokeWidth={1.5} />}
+                    {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
               </div>
 
-              {/* Submit Button */}
               <button
-                id="login-submit"
                 type="submit"
                 disabled={loading}
-                className="w-full text-white font-black py-3 rounded-xl text-sm transition-all mt-2 font-heading shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
-                style={{
-                  background: selectedRole === 'admin'
-                    ? 'linear-gradient(135deg, #EA4532 0%, #B91C1C 100%)'
-                    : selectedRole === 'instructor'
-                    ? 'linear-gradient(135deg, #E8A33D 0%, #D97706 100%)'
-                    : 'linear-gradient(135deg, #3895D2 0%, #2563EB 100%)'
-                }}
+                className="w-full py-3 bg-[#0F172A] hover:bg-slate-800 active:scale-[0.99] text-white rounded-xl text-xs md:text-sm font-heading font-black transition-all shadow-md flex items-center justify-center gap-2 mt-2 disabled:opacity-50"
               >
-                {loading ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Authenticating {selectedRole.toUpperCase()}...
-                  </>
-                ) : `Sign In to ${selectedRole.toUpperCase()} Portal →`}
+                <span>{loading ? 'Authenticating...' : `Sign In to ${selectedRole.toUpperCase()} Portal`}</span>
+                <ArrowRight size={16} />
               </button>
             </form>
 
-            {/* Bottom trust badges */}
-            <div className="flex items-center justify-center gap-2 mt-6 text-white/25">
-              <ShieldCheck size={14} />
-              <span className="text-[10px] font-mono tracking-wider uppercase">
-                SECURED BY DIGIMARTRIX SHIELD
-              </span>
+            {/* Footer notice */}
+            <div className="mt-6 text-center text-[11px] text-slate-600 font-medium">
+              <span>Protected by DigiMartrix 256-bit encrypted authentication</span>
             </div>
           </div>
         </div>
-      </div>
 
-      <style>{`
-        @keyframes thoughtFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-8px); }
-        }
-      `}</style>
+      </div>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Eye, EyeOff, CheckCircle2, AlertCircle, Rocket, Code2, Users, Zap, Volume2, ShieldCheck, Mail, Lock, User, BookOpen, GraduationCap, Shield } from 'lucide-react'
+import { Eye, EyeOff, CheckCircle2, AlertCircle, Rocket, Code2, Users, Zap, Volume2, ShieldCheck, Mail, Lock, User, BookOpen, GraduationCap, ArrowRight } from 'lucide-react'
 import api from '../lib/api'
 import Lottie from 'lottie-react'
 import { playLoudClearVoice } from '../lib/speech'
@@ -17,24 +17,30 @@ const THOUGHTS = [
 const ROLE_OPTIONS = [
   {
     id: 'student',
-    title: 'Student Learner',
+    title: 'Student',
     icon: GraduationCap,
-    color: '#3895D2',
-    desc: 'Access courses, coding arena, quizzes & AI mentor'
+    color: '#0284C7',
+    bg: 'bg-sky-50',
+    border: 'border-sky-200',
+    desc: 'Courses, labs & quizzes'
   },
   {
     id: 'instructor',
-    title: 'Course Instructor',
+    title: 'Instructor',
     icon: Code2,
     color: '#EA4532',
-    desc: 'Author courses, create coding quizzes & track royalties'
+    bg: 'bg-rose-50',
+    border: 'border-rose-200',
+    desc: 'Author course curriculum'
   },
   {
     id: 'mentor',
-    title: 'Ecosystem Mentor',
+    title: 'Mentor',
     icon: Users,
-    color: '#4FB286',
-    desc: 'Host 1-on-1 guidance calls & live workshops'
+    color: '#059669',
+    bg: 'bg-emerald-50',
+    border: 'border-emerald-200',
+    desc: '1-on-1 career guidance'
   }
 ]
 
@@ -53,30 +59,12 @@ export default function Register() {
   
   const { login } = useAuth()
   const navigate = useNavigate()
-  const cardRef = useRef(null)
 
   useEffect(() => {
     fetch('/DIGIMARTRIX_Robo.json')
       .then(res => res.json())
       .then(data => setAnimationData(data))
       .catch(err => console.error("Error loading robo animation:", err))
-  }, [])
-
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (!cardRef.current) return
-      const rect = cardRef.current.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      const y = e.clientY - rect.top
-      cardRef.current.style.setProperty('--mouse-x', `${x}px`)
-      cardRef.current.style.setProperty('--mouse-y', `${y}px`)
-    }
-
-    const card = cardRef.current
-    if (card) {
-      card.addEventListener('mousemove', handleMouseMove)
-      return () => card.removeEventListener('mousemove', handleMouseMove)
-    }
   }, [])
 
   const speakThought = (textToSpeak) => {
@@ -92,8 +80,8 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    if (form.password.length < 8) {
-      setError('Password must be at least 8 characters.')
+    if (form.password.length < 6) {
+      setError('Password must be at least 6 characters.')
       return
     }
     setLoading(true)
@@ -117,78 +105,57 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 md:p-8 lg:p-12 relative overflow-hidden" 
-      style={{ background: 'linear-gradient(135deg, #070913 0%, #0B0F19 50%, #150E2E 100%)' }}>
-      
-      {/* Floating particles background decoration */}
-      <div className="absolute top-[10%] right-[5%] w-72 h-72 rounded-full bg-[#EA4532]/10 blur-[80px] animate-pulse pointer-events-none" />
-      <div className="absolute bottom-[10%] left-[5%] w-80 h-80 rounded-full bg-[#3895D2]/10 blur-[100px] animate-pulse pointer-events-none" style={{ animationDelay: '2s' }} />
+    <div className="min-h-screen flex items-center justify-center p-4 md:p-8 bg-slate-50 relative overflow-hidden">
+      {/* Soft elegant background accents */}
+      <div className="absolute top-0 right-1/4 w-96 h-96 bg-rose-100/50 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-sky-100/60 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Main Container Card (Expanded width: max-w-6xl, min-h-[600px]) */}
-      <div 
-        ref={cardRef}
-        className="w-full max-w-6xl min-h-[600px] bg-white/[0.01] backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col lg:flex-row relative transition-all duration-300 hover:border-white/15"
-        style={{
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
-        }}
-      >
-        {/* Dynamic interactive gradient cursor glow */}
-        <div 
-          className="absolute inset-0 opacity-40 pointer-events-none transition-opacity duration-300"
-          style={{
-            background: `radial-gradient(400px circle at var(--mouse-x, 0) var(--mouse-y, 0), rgba(56, 149, 210, 0.08), transparent 80%)`
-          }}
-        />
-
-        {/* Subtle decorative glowing borders */}
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[#EA4532] via-[#E8A33D] to-[#3895D2]" />
+      {/* Main Container Card */}
+      <div className="w-full max-w-5xl bg-white border border-slate-200/90 rounded-3xl shadow-xl shadow-slate-200/60 overflow-hidden flex flex-col lg:flex-row relative z-10">
         
-        {/* Left panel — Robot + Features */}
-        <div className="w-full lg:w-[48%] p-8 lg:p-12 border-b lg:border-b-0 lg:border-r border-white/10 flex flex-col justify-between gap-6 relative overflow-hidden bg-white/[0.01]">
-          <div className="relative z-10">
-            {/* Logo */}
+        {/* Left Side: Brand Showcase + Interactive Robot Mascot */}
+        <div className="w-full lg:w-[46%] p-8 lg:p-12 border-b lg:border-b-0 lg:border-r border-slate-100 flex flex-col justify-between gap-6 bg-slate-50/60">
+          
+          {/* Logo & Header */}
+          <div>
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-11 h-11 rounded-xl border border-white/15 flex items-center justify-center overflow-hidden bg-white/5 backdrop-blur-sm shadow-lg hover:scale-105 transition-transform duration-200">
+              <div className="w-11 h-11 rounded-2xl border border-slate-200 bg-white flex items-center justify-center shadow-xs">
                 <img src="/favicon_circle.png" alt="Digimartrix Logo" className="w-full h-full object-contain p-1" />
               </div>
               <div className="flex flex-col">
-                <span className="font-heading font-black text-base tracking-wide leading-none">
+                <span className="font-heading font-black text-base tracking-wide leading-none text-slate-900">
                   <span className="text-[#3895D2]">DIGI</span>
                   <span className="text-[#EA4532]">GROWUP</span>
                 </span>
-                <span className="font-mono text-white/40 text-[8px] tracking-[0.2em] mt-1 font-bold">ECOSYSTEM MEMBERSHIP</span>
+                <span className="font-mono text-slate-600 text-[9px] tracking-wider mt-1 font-bold">ECOSYSTEM MEMBERSHIP</span>
               </div>
             </div>
 
-            <h1 className="text-3xl lg:text-4xl font-heading font-black text-white mb-2 leading-tight">
-              Join as a{' '}
-              <span className="bg-gradient-to-r from-[#3895D2] via-[#E8A33D] to-[#EA4532] bg-clip-text text-transparent animate-shimmer">Learner or Instructor</span>.
+            <h1 className="text-2xl lg:text-3xl font-heading font-black text-slate-900 mb-2 leading-tight tracking-tight">
+              Join as a Learner, Instructor, or Mentor.
             </h1>
-            <p className="text-white/50 text-xs md:text-sm leading-relaxed">
-              Create your free verified account, choose your role, and gain immediate access to our interactive curriculum studio or learner hub.
+            <p className="text-slate-600 text-xs md:text-sm leading-relaxed font-medium">
+              Create your account to start interactive tracks, earn verified certificates, or author comprehensive engineering courses.
             </p>
           </div>
 
-          {/* Interactive Robot with speech and thoughts */}
-          <div className="relative z-10 flex flex-col items-center my-2 group">
-            {/* Thought Bubble */}
-            <div 
+          {/* Interactive Mascot & Speech Bubble */}
+          <div className="flex flex-col items-center my-2 group">
+            {/* Thought bubble */}
+            <button
+              type="button"
               onClick={handleRoboClick}
-              className="relative cursor-pointer mb-3 px-4 py-2.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-bold shadow-xl transition-all duration-300 hover:scale-105 hover:bg-white/15 hover:border-white/30 text-center max-w-[280px]"
-              style={{ animation: 'thoughtFloat 3s ease-in-out infinite' }}
-              title="Click to hear robo's thought!"
+              className="cursor-pointer mb-3 px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-slate-800 text-xs font-bold shadow-xs hover:shadow-md hover:border-[#EA4532]/40 transition-all flex items-center gap-2 max-w-[280px] text-center"
             >
-              <div className="flex items-center justify-center gap-1.5">
-                <span>{THOUGHTS[thoughtIdx]}</span>
-                <Volume2 size={13} className="text-[#EA4532] flex-shrink-0 animate-pulse" />
-              </div>
-              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-white/10 border-b border-r border-white/20 rotate-45" />
-            </div>
+              <span>{THOUGHTS[thoughtIdx]}</span>
+              <Volume2 size={15} className="text-[#EA4532] flex-shrink-0 animate-pulse" />
+            </button>
 
-            {/* Lottie Robo */}
+            {/* Robot Animation */}
             <div 
               onClick={handleRoboClick}
-              className="w-40 h-40 relative cursor-pointer transform transition-transform duration-300 group-hover:scale-105 group-active:scale-95"
+              className="w-36 h-36 relative cursor-pointer transform transition-transform duration-300 group-hover:scale-105"
+              title="Click to talk with DigiRobot!"
             >
               {animationData ? (
                 <Lottie animationData={animationData} loop={true} className="w-full h-full" />
@@ -198,52 +165,55 @@ export default function Register() {
             </div>
           </div>
 
-          {/* Feature Grid */}
-          <div className="relative z-10 grid grid-cols-2 gap-2">
+          {/* Feature Badges */}
+          <div className="grid grid-cols-2 gap-2">
             {[
-              { icon: Code2, label: 'Practice Labs', desc: 'Hands-on coding' },
-              { icon: BookOpen, label: 'Course Studio', desc: 'Authoring tools' },
-              { icon: Users, label: 'Community', desc: 'Peer discussions' },
-              { icon: Zap, label: 'AI Mentor', desc: 'Instant support' },
-            ].map(({ icon: Icon, label, desc }) => (
-              <div key={label} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-2.5 group hover:bg-white/[0.08] hover:border-white/15 transition-all cursor-default">
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <Icon size={12} strokeWidth={1.5} className="text-[#3895D2] group-hover:text-[#EA4532] transition-colors" />
-                  <span className="text-white/85 text-[11px] font-bold">{label}</span>
+              { icon: BookOpen, label: 'Course Studio', text: 'Author & Publish' },
+              { icon: Zap, label: 'AI Mentor', text: 'Real-time Assistant' },
+            ].map(({ icon: Icon, label, text }) => (
+              <div 
+                key={label} 
+                className="bg-white border border-slate-200 rounded-xl p-2.5 shadow-2xs"
+              >
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-800">
+                  <Icon size={13} className="text-[#EA4532]" />
+                  <span>{label}</span>
                 </div>
-                <span className="text-white/30 text-[8px] font-mono uppercase tracking-wider">{desc}</span>
+                <p className="text-[10px] text-slate-600 mt-0.5 font-medium">{text}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Right Side: Form (Centered & Compact with Role Selector) */}
-        <div className="flex-1 p-8 lg:p-12 flex flex-col justify-center bg-white/[0.005]">
-          <div className="w-full max-w-[420px] mx-auto page-enter">
+        {/* Right Side: Registration Form */}
+        <div className="flex-1 p-8 lg:p-12 flex flex-col justify-center bg-white">
+          <div className="w-full max-w-md mx-auto page-enter">
             
-            <div className="mb-4">
-              <h2 className="text-2xl font-heading font-black text-white tracking-tight">Create Account</h2>
-              <p className="text-white/45 text-xs mt-0.5">
+            <div className="mb-5">
+              <h2 className="text-2xl font-heading font-black text-slate-900 tracking-tight">Create Account</h2>
+              <p className="text-slate-500 text-xs mt-1 font-medium">
                 Already registered?{' '}
-                <Link to="/login" className="text-[#3895D2] font-black hover:text-[#3895D2]/80 transition-colors underline decoration-2 underline-offset-4">
-                  Sign in
+                <Link to="/login" className="text-[#3895D2] font-bold hover:underline">
+                  Sign in to your account
                 </Link>
               </p>
             </div>
 
+            {/* Error Message */}
             {error && (
-              <div className="flex items-start gap-3 bg-[#EA4532]/10 border border-[#EA4532]/20 rounded-xl px-4 py-2.5 mb-4">
-                <AlertCircle size={15} strokeWidth={1.5} className="text-[#EA4532] mt-0.5 flex-shrink-0" />
-                <p className="text-[#EA4532] text-xs leading-relaxed">{error}</p>
+              <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2.5 font-medium animate-fade-in">
+                <AlertCircle size={16} className="flex-shrink-0" />
+                <span>{error}</span>
               </div>
             )}
 
+            {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-3.5">
               
               {/* Account Role Selector */}
               <div>
-                <label className="block text-white/50 text-[10px] font-mono uppercase font-bold tracking-wider mb-1.5">
-                  Choose Account Role:
+                <label className="block text-[11px] font-mono font-bold text-slate-700 uppercase mb-1.5">
+                  Choose Account Role
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {ROLE_OPTIONS.map((r) => {
@@ -251,122 +221,102 @@ export default function Register() {
                     const isSelected = form.role === r.id
                     return (
                       <button
-                        key={r.id}
                         type="button"
-                        onClick={() => setForm(f => ({ ...f, role: r.id }))}
-                        className={`p-2 rounded-xl border text-center transition-all flex flex-col items-center gap-1 ${
+                        key={r.id}
+                        onClick={() => setForm({ ...form, role: r.id })}
+                        className={`p-2.5 rounded-2xl border text-center transition-all flex flex-col items-center gap-1 ${
                           isSelected
-                            ? 'bg-white/10 border-[#3895D2] text-white ring-1 ring-[#3895D2]/50 shadow-md'
-                            : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/[0.08] hover:text-white opacity-70 hover:opacity-100'
+                            ? 'border-[#0F172A] bg-[#0F172A] text-white shadow-md'
+                            : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
                         }`}
                       >
-                        <Icon size={16} style={{ color: r.color }} />
-                        <span className="text-[11px] font-bold leading-tight">{r.title.split(' ')[0]}</span>
-                        <span className="text-[7.5px] font-mono text-white/40 uppercase">{r.title.split(' ')[1]}</span>
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                          isSelected ? 'bg-white/20 text-white' : `${r.bg} text-slate-800`
+                        }`}>
+                          <Icon size={14} />
+                        </div>
+                        <span className="text-xs font-heading font-bold">{r.title}</span>
                       </button>
                     )
                   })}
                 </div>
               </div>
 
-              {/* Full Name Field */}
               <div>
-                <label className="block text-white/50 text-xs font-bold mb-1">Full Name</label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-white/30 group-focus-within:text-[#EA4532] transition-colors">
-                    <User size={15} />
-                  </div>
+                <label className="block text-[11px] font-mono font-bold text-slate-700 uppercase mb-1">
+                  Full Name
+                </label>
+                <div className="relative">
+                  <User size={16} className="absolute left-3.5 top-3 text-slate-400" />
                   <input
-                    id="name"
                     type="text"
-                    autoComplete="name"
+                    required
                     value={form.name}
-                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                    placeholder="Your full name"
-                    required
-                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-[#EA4532]/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-[#EA4532]/10 transition-all font-body"
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="John Doe"
+                    className="w-full text-slate-900 bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-xs md:text-sm font-medium focus:bg-white focus:outline-none focus:border-[#3895D2] focus:ring-2 focus:ring-[#3895D2]/15 transition-all"
                   />
                 </div>
               </div>
 
-              {/* Email Address Field */}
               <div>
-                <label className="block text-white/50 text-xs font-bold mb-1">Email Address</label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-white/30 group-focus-within:text-[#EA4532] transition-colors">
-                    <Mail size={15} />
-                  </div>
+                <label className="block text-[11px] font-mono font-bold text-slate-700 uppercase mb-1">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail size={16} className="absolute left-3.5 top-3 text-slate-400" />
                   <input
-                    id="reg-email"
                     type="email"
-                    autoComplete="email"
-                    value={form.email}
-                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                    placeholder="you@example.com"
                     required
-                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-[#EA4532]/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-[#EA4532]/10 transition-all font-body"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    placeholder="you@example.com"
+                    className="w-full text-slate-900 bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-xs md:text-sm font-medium focus:bg-white focus:outline-none focus:border-[#3895D2] focus:ring-2 focus:ring-[#3895D2]/15 transition-all"
                   />
                 </div>
               </div>
 
-              {/* Password Field */}
               <div>
-                <label className="block text-white/50 text-xs font-bold mb-1">Password</label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-white/30 group-focus-within:text-[#EA4532] transition-colors">
-                    <Lock size={15} />
-                  </div>
+                <label className="block text-[11px] font-mono font-bold text-slate-700 uppercase mb-1">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock size={16} className="absolute left-3.5 top-3 text-slate-400" />
                   <input
-                    id="reg-password"
                     type={showPw ? 'text' : 'password'}
-                    autoComplete="new-password"
-                    value={form.password}
-                    onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                    placeholder="Min. 8 characters"
                     required
-                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-10 py-2.5 text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-[#EA4532]/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-[#EA4532]/10 transition-all font-body"
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    placeholder="Min 6 characters"
+                    className="w-full text-slate-900 bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-10 py-2 text-xs md:text-sm font-medium focus:bg-white focus:outline-none focus:border-[#3895D2] focus:ring-2 focus:ring-[#3895D2]/15 transition-all"
                   />
-                  <button type="button" onClick={() => setShowPw(v => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors">
-                    {showPw ? <EyeOff size={15} strokeWidth={1.5} /> : <Eye size={15} strokeWidth={1.5} />}
+                  <button
+                    type="button"
+                    onClick={() => setShowPw(!showPw)}
+                    className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
               </div>
 
-              {/* Submit Button */}
               <button
-                id="reg-submit"
                 type="submit"
                 disabled={loading}
-                className="w-full text-white font-black py-3 rounded-xl text-sm transition-all mt-2 font-heading shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
-                style={{ background: 'linear-gradient(135deg, #EA4532 0%, #C23020 100%)' }}
+                className="w-full py-3 bg-[#0F172A] hover:bg-slate-800 active:scale-[0.99] text-white rounded-xl text-xs md:text-sm font-heading font-black transition-all shadow-md flex items-center justify-center gap-2 mt-3 disabled:opacity-50"
               >
-                {loading ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Creating {form.role.toUpperCase()} account...
-                  </>
-                ) : `Join DigiGrowUp as ${form.role.toUpperCase()} →`}
+                <span>{loading ? 'Creating Account...' : `Register as ${form.role.toUpperCase()}`}</span>
+                <ArrowRight size={16} />
               </button>
             </form>
 
-            {/* Bottom trust badges */}
-            <div className="flex items-center justify-center gap-2 mt-4 text-white/25">
-              <ShieldCheck size={13} />
-              <span className="text-[9px] font-mono tracking-wider uppercase">
-                SECURED BY DIGIMARTRIX SHIELD
-              </span>
+            <div className="mt-5 text-center text-[11px] text-slate-600 font-medium">
+              <span>By creating an account, you agree to DigiGrowUp Terms of Service</span>
             </div>
           </div>
         </div>
-      </div>
 
-      <style>{`
-        @keyframes thoughtFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-8px); }
-        }
-      `}</style>
+      </div>
     </div>
   )
 }
