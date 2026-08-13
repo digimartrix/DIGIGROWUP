@@ -100,7 +100,14 @@ export default function InstructorDashboard() {
     setLoading(true)
     try {
       const res = await api.get('/instructor/courses')
-      setCourses(res.data || [])
+      const list = res.data || []
+      setCourses(list)
+      if (list.length > 0) {
+        handleSelectCourse(list[0])
+      } else {
+        setSelectedCourse(null)
+        setCourseDetails(null)
+      }
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to load courses.', true)
     } finally {
@@ -564,151 +571,198 @@ export default function InstructorDashboard() {
 
       {/* TAB 1: COURSES */}
       {activeTab === 'courses' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Left Column: Courses list */}
-          <div className="lg:col-span-5 space-y-4">
-            <h2 className="text-xs font-mono uppercase font-bold text-slate-500 tracking-wider">
-              Your Published Courses ({courses.length})
-            </h2>
+        <>
+          {loading ? (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              <div className="lg:col-span-5 space-y-3">
+                {[1, 2].map(i => <div key={i} className="h-32 bg-slate-100 rounded-2xl animate-pulse" />)}
+              </div>
+              <div className="lg:col-span-7 h-80 bg-slate-100 rounded-2xl animate-pulse" />
+            </div>
+          ) : courses.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-3xl p-8 md:p-14 text-center shadow-xs space-y-6 max-w-3xl mx-auto">
+              <div className="w-20 h-20 rounded-2xl bg-blue-50 text-[#3895D2] flex items-center justify-center mx-auto shadow-inner">
+                <BookOpen size={40} />
+              </div>
+              <div className="space-y-2 max-w-md mx-auto">
+                <h3 className="text-xl md:text-2xl font-black text-slate-900 font-heading tracking-tight">
+                  Author Your First Interactive Course
+                </h3>
+                <p className="text-slate-600 text-xs md:text-sm font-medium leading-relaxed">
+                  Create structured curriculums with modules, markdown lessons, code snippets, and auto-graded assessments. Earn 80% royalties on student enrollments.
+                </p>
+              </div>
 
-            {loading ? (
-              <div className="space-y-3">
-                {[1, 2].map(i => <div key={i} className="h-28 bg-slate-100 rounded-xl animate-pulse" />)}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-left pt-2">
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                  <span className="text-[10px] font-black text-[#3895D2] font-mono uppercase tracking-wider">STEP 01</span>
+                  <h4 className="font-heading font-black text-slate-900 text-sm mt-1">Course Setup</h4>
+                  <p className="text-xs text-slate-500 mt-1 font-medium">Define title, category, and credit price.</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                  <span className="text-[10px] font-black text-emerald-600 font-mono uppercase tracking-wider">STEP 02</span>
+                  <h4 className="font-heading font-black text-slate-900 text-sm mt-1">Lessons & Code</h4>
+                  <p className="text-xs text-slate-500 mt-1 font-medium">Add curriculum with markdown & quizzes.</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                  <span className="text-[10px] font-black text-amber-600 font-mono uppercase tracking-wider">STEP 03</span>
+                  <h4 className="font-heading font-black text-slate-900 text-sm mt-1">Live Publish</h4>
+                  <p className="text-xs text-slate-500 mt-1 font-medium">Available immediately on Explore tracks.</p>
+                </div>
               </div>
-            ) : courses.length === 0 ? (
-              <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-slate-500 shadow-2xs">
-                <BookOpen size={36} className="mx-auto mb-2 text-slate-300" />
-                <p className="text-sm font-bold text-slate-800">No courses created yet.</p>
-                <p className="text-xs text-slate-500 mt-1">Click "Create New Course" above to author your first track.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {courses.map(c => {
-                  const isSelected = selectedCourse?._id === c._id
-                  return (
-                    <div
-                      key={c._id}
-                      onClick={() => handleSelectCourse(c)}
-                      className={`bg-white border rounded-2xl p-5 cursor-pointer transition-all shadow-2xs hover:shadow-xs ${
-                        isSelected ? 'border-[#3895D2] ring-2 ring-[#3895D2]/20 bg-blue-50/20' : 'border-slate-200 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex justify-between items-start mb-2.5">
-                        <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md bg-slate-100 text-slate-800 border border-slate-200">
-                          {c.category} · {c.difficulty}
-                        </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDeleteCourse(c._id, c.title)
-                          }}
-                          className="text-slate-400 hover:text-rose-600 p-1 transition-colors"
-                          title="Delete Course"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                      <h3 className="font-heading font-black text-slate-900 text-base mb-1.5">{c.title}</h3>
-                      <p className="text-xs text-slate-600 line-clamp-2 font-medium mb-3.5 leading-relaxed">{c.description}</p>
-                      <div className="flex justify-between items-center text-xs font-bold text-slate-700 pt-3 border-t border-slate-100">
-                        <span className="flex items-center gap-1.5 text-slate-700">
-                          <Layers size={14} className="text-[#3895D2]" />
-                          <span>{c.moduleCount || 0} Modules</span>
-                        </span>
-                        <span className="bg-[#3895D2]/10 text-[#3895D2] border border-[#3895D2]/20 px-2.5 py-0.5 rounded-md font-black">
-                          {c.creditsCost || 0} Credits
-                        </span>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
 
-          {/* Right Column: Curriculum Builder */}
-          <div className="lg:col-span-7">
-            {selectedCourse ? (
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs space-y-6">
-                <div className="flex justify-between items-center pb-4 border-b border-slate-100">
-                  <div>
-                    <span className="text-[10px] font-mono font-bold text-[#3895D2] uppercase tracking-wider">CURRICULUM BUILDER</span>
-                    <h3 className="font-heading font-black text-slate-900 text-xl">{selectedCourse.title}</h3>
-                  </div>
-                  <button
-                    onClick={() => setShowAddModule(true)}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-[#3895D2] hover:bg-[#2c7db5] text-white text-xs font-bold rounded-xl shadow-xs transition-all"
-                  >
-                    <Plus size={14} />
-                    <span>Add Module</span>
-                  </button>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="inline-flex items-center gap-2 px-6 py-3.5 bg-[#EA4532] hover:bg-[#EA4532]/90 text-white rounded-xl text-xs md:text-sm font-bold font-heading transition-all shadow-md hover:shadow-lg"
+              >
+                <Plus size={16} />
+                <span>Create New Course Track</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              {/* Left Column: Courses list (5 cols) */}
+              <div className="lg:col-span-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xs font-mono uppercase font-bold text-slate-500 tracking-wider">
+                    Your Published Courses ({courses.length})
+                  </h2>
                 </div>
 
-                {showAddModule && (
-                  <form onSubmit={handleAddModule} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3 animate-fade-in">
-                    <label className="text-xs font-bold text-slate-700">Module Title</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="e.g. Module 1: Introduction to Web Architecture"
-                        value={newModuleTitle}
-                        onChange={e => setNewModuleTitle(e.target.value)}
-                        className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#3895D2]"
-                        autoFocus
-                      />
-                      <button type="submit" className="px-4 py-2 bg-[#3895D2] text-white text-xs font-bold rounded-xl">Save</button>
-                    </div>
-                  </form>
-                )}
-
-                <div className="space-y-4">
-                  {courseDetails?.modules?.map((mod, idx) => (
-                    <div key={mod._id} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
-                      <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                        <span className="text-xs font-bold text-slate-800">Module {idx + 1}: {mod.title}</span>
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => openAddLesson(mod)} className="text-xs font-bold text-[#3895D2] hover:underline">+ Lesson</button>
-                          <button onClick={() => openQuizBuilder(mod)} className="text-xs font-bold text-amber-600 hover:underline">+ Quiz</button>
-                          <button onClick={() => handleDeleteModule(mod._id, mod.title)} className="text-slate-400 hover:text-rose-600"><Trash2 size={13} /></button>
+                <div className="space-y-3.5">
+                  {courses.map(c => {
+                    const isSelected = selectedCourse?._id === c._id
+                    return (
+                      <div
+                        key={c._id}
+                        onClick={() => handleSelectCourse(c)}
+                        className={`bg-white border rounded-2xl p-5 cursor-pointer transition-all shadow-2xs hover:shadow-xs ${
+                          isSelected ? 'border-[#3895D2] ring-2 ring-[#3895D2]/20 bg-blue-50/20' : 'border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start mb-2.5">
+                          <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md bg-slate-100 text-slate-800 border border-slate-200">
+                            {c.category} · {c.difficulty}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteCourse(c._id, c.title)
+                            }}
+                            className="text-slate-400 hover:text-rose-600 p-1 transition-colors"
+                            title="Delete Course"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                        <h3 className="font-heading font-black text-slate-900 text-base mb-1.5">{c.title}</h3>
+                        <p className="text-xs text-slate-600 line-clamp-2 font-medium mb-3.5 leading-relaxed">{c.description}</p>
+                        <div className="flex justify-between items-center text-xs font-bold text-slate-700 pt-3 border-t border-slate-100">
+                          <span className="flex items-center gap-1.5 text-slate-700">
+                            <Layers size={14} className="text-[#3895D2]" />
+                            <span>{c.moduleCount || 0} Modules</span>
+                          </span>
+                          <span className="bg-[#3895D2]/10 text-[#3895D2] border border-[#3895D2]/20 px-2.5 py-0.5 rounded-md font-black">
+                            {c.creditsCost || 0} Credits
+                          </span>
                         </div>
                       </div>
-                      <div className="p-4 space-y-2">
-                        {mod.lessons?.map((les) => (
-                          <div key={les._id} className="flex justify-between items-center p-2 rounded-lg bg-slate-50 text-xs font-medium">
-                            <span className="text-slate-700 font-semibold">{les.title}</span>
-                            <div className="flex items-center gap-2">
-                              <button onClick={() => openEditLesson(mod, les)} className="text-slate-500 hover:text-slate-900"><Edit3 size={13} /></button>
-                              <button onClick={() => handleDeleteLesson(mod._id, les._id, les.title)} className="text-slate-400 hover:text-rose-600"><Trash2 size={13} /></button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Right Column: Curriculum Builder (7 cols) */}
+              <div className="lg:col-span-7">
+                {selectedCourse ? (
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs space-y-6">
+                    <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+                      <div>
+                        <span className="text-[10px] font-mono font-bold text-[#3895D2] uppercase tracking-wider">CURRICULUM BUILDER</span>
+                        <h3 className="font-heading font-black text-slate-900 text-xl">{selectedCourse.title}</h3>
+                      </div>
+                      <button
+                        onClick={() => setShowAddModule(true)}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-[#3895D2] hover:bg-[#2c7db5] text-white text-xs font-bold rounded-xl shadow-xs transition-all"
+                      >
+                        <Plus size={14} />
+                        <span>Add Module</span>
+                      </button>
+                    </div>
+
+                    {showAddModule && (
+                      <form onSubmit={handleAddModule} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3 animate-fade-in">
+                        <label className="text-xs font-bold text-slate-700">Module Title</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="e.g. Module 1: Introduction to Web Architecture"
+                            value={newModuleTitle}
+                            onChange={e => setNewModuleTitle(e.target.value)}
+                            className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#3895D2]"
+                            autoFocus
+                          />
+                          <button type="submit" className="px-4 py-2 bg-[#3895D2] text-white text-xs font-bold rounded-xl">Save</button>
+                        </div>
+                      </form>
+                    )}
+
+                    {/* Modules List */}
+                    {courseDetails?.modules?.length === 0 ? (
+                      <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-8 text-center space-y-2">
+                        <Layers size={28} className="text-slate-400 mx-auto" />
+                        <p className="text-sm font-bold text-slate-800">No modules added to this course yet.</p>
+                        <p className="text-xs text-slate-500">Click "Add Module" above to start adding lessons and quizzes.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {courseDetails?.modules?.map((mod, idx) => (
+                          <div key={mod._id} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                            <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                              <span className="text-xs font-bold text-slate-800">Module {idx + 1}: {mod.title}</span>
+                              <div className="flex items-center gap-2">
+                                <button onClick={() => openAddLesson(mod)} className="text-xs font-bold text-[#3895D2] hover:underline">+ Lesson</button>
+                                <button onClick={() => openQuizBuilder(mod)} className="text-xs font-bold text-amber-600 hover:underline">+ Quiz</button>
+                                <button onClick={() => handleDeleteModule(mod._id, mod.title)} className="text-slate-400 hover:text-rose-600"><Trash2 size={13} /></button>
+                              </div>
+                            </div>
+                            <div className="p-4 space-y-2">
+                              {mod.lessons?.length === 0 ? (
+                                <p className="text-xs text-slate-400 italic">No lessons yet. Click "+ Lesson" to author markdown content.</p>
+                              ) : (
+                                mod.lessons?.map((les) => (
+                                  <div key={les._id} className="flex justify-between items-center p-2 rounded-lg bg-slate-50 text-xs font-medium">
+                                    <span className="text-slate-700 font-semibold">{les.title}</span>
+                                    <div className="flex items-center gap-2">
+                                      <button onClick={() => openEditLesson(mod, les)} className="text-slate-500 hover:text-slate-900"><Edit3 size={13} /></button>
+                                      <button onClick={() => handleDeleteLesson(mod._id, les._id, les.title)} className="text-slate-400 hover:text-rose-600"><Trash2 size={13} /></button>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
                             </div>
                           </div>
                         ))}
                       </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-500 shadow-2xs space-y-4">
+                    <div className="w-16 h-16 rounded-2xl bg-blue-50 text-[#3895D2] flex items-center justify-center mx-auto">
+                      <Layers size={32} />
                     </div>
-                  ))}
-                </div>
+                    <div>
+                      <h4 className="text-lg font-black text-slate-900 font-heading">Course Curriculum Editor</h4>
+                      <p className="text-xs text-slate-600 max-w-md mx-auto mt-1 font-medium leading-relaxed">
+                        Select a course from the list on the left to structure its modules, write markdown lessons with interactive code snippets, and build auto-graded assessment quizzes.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-500 shadow-2xs space-y-4">
-                <div className="w-16 h-16 rounded-2xl bg-blue-50 text-[#3895D2] flex items-center justify-center mx-auto">
-                  <Layers size={32} />
-                </div>
-                <div>
-                  <h4 className="text-lg font-black text-slate-900 font-heading">Course Curriculum Editor</h4>
-                  <p className="text-xs text-slate-600 max-w-md mx-auto mt-1 font-medium leading-relaxed">
-                    Select a course from the list on the left to structure its modules, write markdown lessons with interactive code snippets, and build auto-graded assessment quizzes.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
-                >
-                  <Plus size={14} />
-                  <span>Create Another Course</span>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* TAB 2: LIVE EVENTS */}
