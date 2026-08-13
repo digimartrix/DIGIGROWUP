@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import api from '../lib/api'
 import {
@@ -144,6 +144,7 @@ function createCounter(initial = 0) {
 
 export default function ResourceHub() {
   const { user } = useAuth()
+  const [resources, setResources] = useState(RESOURCES_DATA)
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [searchQuery, setSearchQuery] = useState('')
   const [unlockedResources, setUnlockedResources] = useState(() => {
@@ -152,6 +153,32 @@ export default function ResourceHub() {
   })
   const [previewModal, setPreviewModal] = useState(null)
   const [toast, setToast] = useState({ msg: '', isErr: false })
+
+  useEffect(() => {
+    async function loadResources() {
+      try {
+        const res = await api.get('/resources')
+        if (res.data?.success && res.data.data?.length > 0) {
+          const dbRes = res.data.data.map(r => ({
+            id: r._id,
+            title: r.title,
+            category: r.type === 'PDF' ? 'Cheat Sheets' : (r.type === 'Code' ? 'Starters & Boilerplates' : 'Cheat Sheets'),
+            type: r.type || 'Guide',
+            size: '1.5 MB',
+            cost: r.creditsCost || 0,
+            downloads: 120,
+            tags: ['Instructor Upload', r.type || 'Resource'],
+            desc: r.description || 'Verified engineering learning asset provided by instructor.',
+            previewContent: `# ${r.title}\n\n${r.description || 'Downloadable developer asset.'}\n\nDownload Link: ${r.downloadUrl || 'Available on request'}`
+          }))
+          setResources([...dbRes, ...RESOURCES_DATA])
+        }
+      } catch (err) {
+        console.warn('Using base resources:', err.message)
+      }
+    }
+    loadResources()
+  }, [])
 
   const showToast = (msg, isErr = false) => {
     setToast({ msg, isErr })
@@ -188,7 +215,7 @@ export default function ResourceHub() {
     }
   }
 
-  const filtered = RESOURCES_DATA.filter((r) => {
+  const filtered = resources.filter((r) => {
     const matchesCat = selectedCategory === 'All' || r.category === selectedCategory
     const matchesSearch = r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           r.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()))

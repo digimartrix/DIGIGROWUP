@@ -3,16 +3,18 @@ import api from '../lib/api'
 import {
   BookOpen, Plus, Trash2, Edit3, ChevronDown, ChevronRight,
   FileText, HelpCircle, Layers, CheckCircle2, AlertCircle, Save,
-  Eye, Sparkles, Clock, BarChart2, ShieldAlert
+  Eye, Sparkles, Clock, BarChart2, ShieldAlert, Video, Download,
+  Code, Calendar, ExternalLink, X, PlusCircle, Users
 } from 'lucide-react'
 
 export default function InstructorDashboard() {
+  const [activeTab, setActiveTab] = useState('courses') // 'courses' | 'events' | 'resources' | 'projects'
+  
+  // Courses state
   const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
-
-  // Create course form state
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newCourse, setNewCourse] = useState({
     title: '',
@@ -23,27 +25,64 @@ export default function InstructorDashboard() {
     creditsCost: 50,
   })
 
-  // Selected course for curriculum builder
   const [selectedCourse, setSelectedCourse] = useState(null)
   const [courseDetails, setCourseDetails] = useState(null)
   const [loadingDetails, setLoadingDetails] = useState(false)
-
-  // Module / Lesson / Quiz editing modals & states
   const [newModuleTitle, setNewModuleTitle] = useState('')
   const [showAddModule, setShowAddModule] = useState(false)
-
   const [activeModuleForLesson, setActiveModuleForLesson] = useState(null)
   const [lessonForm, setLessonForm] = useState({ title: '', content: '' })
   const [editingLessonId, setEditingLessonId] = useState(null)
   const [showLessonModal, setShowLessonModal] = useState(false)
   const [previewMarkdown, setPreviewMarkdown] = useState(false)
-
   const [activeModuleForQuiz, setActiveModuleForQuiz] = useState(null)
   const [quizQuestions, setQuizQuestions] = useState([])
   const [showQuizModal, setShowQuizModal] = useState(false)
 
+  // Events state
+  const [events, setEvents] = useState([])
+  const [loadingEvents, setLoadingEvents] = useState(false)
+  const [showCreateEventModal, setShowCreateEventModal] = useState(false)
+  const [newEvent, setNewEvent] = useState({
+    title: '',
+    description: '',
+    date: '2026-08-20',
+    time: '04:00 PM - 05:30 PM IST',
+    mentor: '',
+    capacity: 50,
+    type: 'Workshop',
+    creditsCost: 0
+  })
+
+  // Resources state
+  const [resources, setResources] = useState([])
+  const [loadingResources, setLoadingResources] = useState(false)
+  const [showCreateResourceModal, setShowCreateResourceModal] = useState(false)
+  const [newResource, setNewResource] = useState({
+    title: '',
+    description: '',
+    type: 'Cheatsheet',
+    downloadUrl: '',
+    creditsCost: 0
+  })
+
+  // Projects state
+  const [projects, setProjects] = useState([])
+  const [loadingProjects, setLoadingProjects] = useState(false)
+  const [showCreateProjectModal, setShowCreateProjectModal] = useState(false)
+  const [newProject, setNewProject] = useState({
+    title: '',
+    problemStatement: '',
+    difficulty: 'Beginner',
+    requiredSkills: 'React, Node.js, TailwindCSS',
+    technology: 'JavaScript, Vite, MongoDB'
+  })
+
   useEffect(() => {
     fetchInstructorCourses()
+    fetchEvents()
+    fetchResources()
+    fetchProjects()
   }, [])
 
   const showToast = (msg, isErr = false) => {
@@ -56,13 +95,14 @@ export default function InstructorDashboard() {
     }
   }
 
+  // ─── COURSES LOGIC ─────────────────────────────────────────
   const fetchInstructorCourses = async () => {
     setLoading(true)
     try {
       const res = await api.get('/instructor/courses')
       setCourses(res.data || [])
     } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to load instructor courses.', true)
+      showToast(err.response?.data?.message || 'Failed to load courses.', true)
     } finally {
       setLoading(false)
     }
@@ -83,7 +123,8 @@ export default function InstructorDashboard() {
         description: '',
         category: 'Web Development',
         difficulty: 'Beginner',
-        estimatedHours: 8
+        estimatedHours: 8,
+        creditsCost: 50
       })
       fetchInstructorCourses()
     } catch (err) {
@@ -92,9 +133,7 @@ export default function InstructorDashboard() {
   }
 
   const handleDeleteCourse = async (courseId, title) => {
-    if (!window.confirm(`Are you sure you want to permanently delete "${title}" and all its modules, lessons, and quizzes?`)) {
-      return
-    }
+    if (!window.confirm(`Are you sure you want to permanently delete "${title}"?`)) return
     try {
       await api.delete(`/instructor/courses/${courseId}`)
       showToast(`Deleted course "${title}".`)
@@ -115,7 +154,7 @@ export default function InstructorDashboard() {
       const res = await api.get(`/courses/${course._id}`)
       setCourseDetails(res.data)
     } catch (err) {
-      showToast('Failed to load course curriculum.', true)
+      showToast('Failed to load course details.', true)
     } finally {
       setLoadingDetails(false)
     }
@@ -137,10 +176,10 @@ export default function InstructorDashboard() {
   }
 
   const handleDeleteModule = async (moduleId, title) => {
-    if (!window.confirm(`Delete module "${title}" and its lessons/quizzes?`)) return
+    if (!window.confirm(`Delete module "${title}" and all its lessons?`)) return
     try {
-      await api.delete(`/instructor/courses/${selectedCourse._id}/modules/${moduleId}`)
-      showToast(`Module "${title}" deleted.`)
+      await api.delete(`/instructor/modules/${moduleId}`)
+      showToast(`Deleted module "${title}".`)
       handleSelectCourse(selectedCourse)
       fetchInstructorCourses()
     } catch (err) {
@@ -148,7 +187,6 @@ export default function InstructorDashboard() {
     }
   }
 
-  // Lesson Management
   const openAddLesson = (module) => {
     setActiveModuleForLesson(module)
     setEditingLessonId(null)
@@ -163,10 +201,7 @@ export default function InstructorDashboard() {
   const openEditLesson = (module, lesson) => {
     setActiveModuleForLesson(module)
     setEditingLessonId(lesson._id)
-    setLessonForm({
-      title: lesson.title,
-      content: lesson.content || ''
-    })
+    setLessonForm({ title: lesson.title, content: lesson.content || '' })
     setPreviewMarkdown(false)
     setShowLessonModal(true)
   }
@@ -205,18 +240,16 @@ export default function InstructorDashboard() {
     }
   }
 
-  // Quiz Management
   const openQuizBuilder = async (module) => {
     setActiveModuleForQuiz(module)
     try {
       if (module.quizId) {
         const res = await api.get(`/quizzes/${module.quizId}`)
-        // Set quiz questions
         setQuizQuestions(res.data?.questions || [])
       } else {
         setQuizQuestions([
           {
-            text: 'What is the primary function of this module concept?',
+            text: 'What is the primary concept of this module?',
             options: ['Option A', 'Option B', 'Option C', 'Option D'],
             correctIndex: 0,
             topic: module.title,
@@ -257,14 +290,14 @@ export default function InstructorDashboard() {
 
   const handleRemoveQuestion = (index) => {
     if (quizQuestions.length <= 1) {
-      showToast('A quiz must have at least one question.', true)
+      showToast('A quiz must have at least 1 question.', true)
       return
     }
     setQuizQuestions(quizQuestions.filter((_, i) => i !== index))
   }
 
   const handleSaveQuiz = async () => {
-    // Validate questions
+    if (!activeModuleForQuiz) return
     for (let i = 0; i < quizQuestions.length; i++) {
       const q = quizQuestions[i]
       if (!q.text.trim()) {
@@ -276,11 +309,8 @@ export default function InstructorDashboard() {
         return
       }
     }
-
     try {
-      await api.post(`/instructor/modules/${activeModuleForQuiz._id}/quiz`, {
-        questions: quizQuestions
-      })
+      await api.post(`/instructor/modules/${activeModuleForQuiz._id}/quiz`, { questions: quizQuestions })
       showToast(`Quiz saved with ${quizQuestions.length} questions!`)
       setShowQuizModal(false)
       handleSelectCourse(selectedCourse)
@@ -289,8 +319,152 @@ export default function InstructorDashboard() {
     }
   }
 
+  // ─── EVENTS LOGIC ──────────────────────────────────────────
+  const fetchEvents = async () => {
+    setLoadingEvents(true)
+    try {
+      const res = await api.get('/instructor/events')
+      setEvents(res.data || [])
+    } catch (err) {
+      console.warn('Failed to load events:', err)
+    } finally {
+      setLoadingEvents(false)
+    }
+  }
+
+  const handleCreateEvent = async (e) => {
+    e.preventDefault()
+    if (!newEvent.title || !newEvent.description) {
+      showToast('Event title and description are required.', true)
+      return
+    }
+    try {
+      await api.post('/instructor/events', newEvent)
+      showToast(`Live event "${newEvent.title}" published!`)
+      setShowCreateEventModal(false)
+      setNewEvent({
+        title: '',
+        description: '',
+        date: '2026-08-20',
+        time: '04:00 PM - 05:30 PM IST',
+        mentor: '',
+        capacity: 50,
+        type: 'Workshop',
+        creditsCost: 0
+      })
+      fetchEvents()
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to create event.', true)
+    }
+  }
+
+  const handleDeleteEvent = async (id, title) => {
+    if (!window.confirm(`Delete live event "${title}"?`)) return
+    try {
+      await api.delete(`/instructor/events/${id}`)
+      showToast(`Deleted event "${title}".`)
+      fetchEvents()
+    } catch (err) {
+      showToast('Failed to delete event.', true)
+    }
+  }
+
+  // ─── RESOURCES LOGIC ───────────────────────────────────────
+  const fetchResources = async () => {
+    setLoadingResources(true)
+    try {
+      const res = await api.get('/instructor/resources')
+      setResources(res.data || [])
+    } catch (err) {
+      console.warn('Failed to load resources:', err)
+    } finally {
+      setLoadingResources(false)
+    }
+  }
+
+  const handleCreateResource = async (e) => {
+    e.preventDefault()
+    if (!newResource.title) {
+      showToast('Resource title is required.', true)
+      return
+    }
+    try {
+      await api.post('/instructor/resources', newResource)
+      showToast(`Resource "${newResource.title}" published!`)
+      setShowCreateResourceModal(false)
+      setNewResource({
+        title: '',
+        description: '',
+        type: 'Cheatsheet',
+        downloadUrl: '',
+        creditsCost: 0
+      })
+      fetchResources()
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to publish resource.', true)
+    }
+  }
+
+  const handleDeleteResource = async (id, title) => {
+    if (!window.confirm(`Delete resource "${title}"?`)) return
+    try {
+      await api.delete(`/instructor/resources/${id}`)
+      showToast(`Deleted resource "${title}".`)
+      fetchResources()
+    } catch (err) {
+      showToast('Failed to delete resource.', true)
+    }
+  }
+
+  // ─── PROJECTS LOGIC ────────────────────────────────────────
+  const fetchProjects = async () => {
+    setLoadingProjects(true)
+    try {
+      const res = await api.get('/instructor/projects')
+      setProjects(res.data || [])
+    } catch (err) {
+      console.warn('Failed to load projects:', err)
+    } finally {
+      setLoadingProjects(false)
+    }
+  }
+
+  const handleCreateProject = async (e) => {
+    e.preventDefault()
+    if (!newProject.title || !newProject.problemStatement) {
+      showToast('Project title and problem statement are required.', true)
+      return
+    }
+    try {
+      await api.post('/instructor/projects', newProject)
+      showToast(`Project challenge "${newProject.title}" published!`)
+      setShowCreateProjectModal(false)
+      setNewProject({
+        title: '',
+        problemStatement: '',
+        difficulty: 'Beginner',
+        requiredSkills: 'React, Node.js, TailwindCSS',
+        technology: 'JavaScript, Vite, MongoDB'
+      })
+      fetchProjects()
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to create project.', true)
+    }
+  }
+
+  const handleDeleteProject = async (id, title) => {
+    if (!window.confirm(`Delete project challenge "${title}"?`)) return
+    try {
+      await api.delete(`/instructor/projects/${id}`)
+      showToast(`Deleted project "${title}".`)
+      fetchProjects()
+    } catch (err) {
+      showToast('Failed to delete project.', true)
+    }
+  }
+
   return (
-    <div className="page-enter max-w-7xl mx-auto space-y-8 pb-16">
+    <div className="page-enter max-w-7xl mx-auto space-y-6 pb-16">
       {/* Toast notifications */}
       {successMsg && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#0F172A] text-emerald-400 border border-emerald-500/30 px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 animate-fade-in text-sm font-medium">
@@ -307,565 +481,505 @@ export default function InstructorDashboard() {
 
       {/* Header Banner */}
       <div className="bg-[#0F172A] border border-slate-800 rounded-2xl p-6 md:p-8 text-white relative overflow-hidden shadow-xl">
-        <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-[#3895D2]/10 rounded-full blur-3xl pointer-events-none" />
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div>
             <div className="flex items-center gap-2 text-xs font-mono tracking-widest text-[#3895D2] font-bold uppercase mb-2">
               <Sparkles size={14} />
-              <span>INSTRUCTOR STUDIO</span>
+              <span>TEACHER & INSTRUCTOR COMMAND STUDIO</span>
             </div>
             <h1 className="text-2xl md:text-3xl font-black font-heading tracking-tight text-white">
-              Course Authoring & Management
+              Curriculum, Events & Assets Studio
             </h1>
-            <p className="text-slate-400 text-sm mt-1 max-w-2xl">
-              Create, organize, and publish live interactive courses, markdown lessons, and auto-graded assessments in real-time.
+            <p className="text-slate-400 text-sm mt-1 max-w-2xl font-medium">
+              Publish courses, schedule live workshops, share educational cheat sheets, and author hands-on project challenges.
             </p>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center justify-center gap-2 bg-[#EA4532] hover:bg-[#EA4532]/90 text-white text-sm font-bold px-5 py-3 rounded-xl transition-all shadow-lg hover:shadow-[#EA4532]/25 flex-shrink-0"
-          >
-            <Plus size={18} />
-            <span>Create New Course</span>
-          </button>
-        </div>
-      </div>
 
-      {/* Main Grid: Left = Course List, Right = Curriculum Editor */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* Left Column: Courses list (4 cols) */}
-        <div className="lg:col-span-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-mono uppercase font-bold text-slate-400 tracking-wider">
-              Your Published Courses ({courses.length})
-            </h2>
-          </div>
-
-          {loading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-28 bg-slate-800/40 rounded-xl animate-pulse border border-slate-800" />
-              ))}
-            </div>
-          ) : courses.length === 0 ? (
-            <div className="bg-[#0F172A] border border-slate-800 rounded-xl p-8 text-center text-slate-400">
-              <BookOpen size={36} className="mx-auto text-slate-600 mb-3" />
-              <p className="font-semibold text-white text-sm">No courses authored yet.</p>
-              <p className="text-xs text-slate-500 mt-1">Click "Create New Course" above to author your first module-based course.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {courses.map((c) => {
-                const isSelected = selectedCourse?._id === c._id
-                return (
-                  <div
-                    key={c._id}
-                    onClick={() => handleSelectCourse(c)}
-                    className={`p-4 rounded-xl border transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-[#1E293B] border-[#3895D2] shadow-md ring-1 ring-[#3895D2]/50'
-                        : 'bg-[#0F172A] border-slate-800 hover:border-slate-700 hover:bg-slate-800/50'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-[#3895D2]/10 text-[#3895D2] border border-[#3895D2]/20">
-                            {c.category || 'General'}
-                          </span>
-                          <span className="text-[10px] font-mono text-slate-400">
-                            {c.difficulty}
-                          </span>
-                        </div>
-                        <h3 className="font-bold text-white text-base truncate">{c.title}</h3>
-                        <p className="text-xs text-slate-400 line-clamp-2 mt-1">{c.description}</p>
-                        
-                        <div className="flex items-center gap-4 mt-3 text-xs font-mono text-slate-400">
-                          <span className="flex items-center gap-1">
-                            <Layers size={13} className="text-[#3895D2]" />
-                            {c.moduleCount || 0} Modules
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <FileText size={13} className="text-[#4FB286]" />
-                            {c.lessonCount || 0} Lessons
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock size={13} className="text-[#E8A33D]" />
-                            {c.estimatedHours || 0}h
-                          </span>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDeleteCourse(c._id, c.title)
-                        }}
-                        title="Delete Course"
-                        className="text-slate-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-500/10 transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Right Column: Curriculum Builder (7 cols) */}
-        <div className="lg:col-span-7 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-mono uppercase font-bold text-slate-400 tracking-wider">
-              {selectedCourse ? `Curriculum Studio: ${selectedCourse.title}` : 'Curriculum Studio'}
-            </h2>
-            {selectedCourse && (
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {activeTab === 'courses' && (
               <button
-                onClick={() => setShowAddModule(true)}
-                className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#3895D2] hover:bg-[#3895D2]/90 px-3 py-1.5 rounded-lg transition-all shadow-sm"
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center gap-2 bg-[#EA4532] hover:bg-[#EA4532]/90 text-white text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl transition-all shadow-md"
               >
-                <Plus size={14} />
-                <span>Add Module</span>
+                <Plus size={16} />
+                <span>Create New Course</span>
+              </button>
+            )}
+            {activeTab === 'events' && (
+              <button
+                onClick={() => setShowCreateEventModal(true)}
+                className="flex items-center gap-2 bg-[#3895D2] hover:bg-[#2c7db5] text-white text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl transition-all shadow-md"
+              >
+                <Plus size={16} />
+                <span>Publish Live Event</span>
+              </button>
+            )}
+            {activeTab === 'resources' && (
+              <button
+                onClick={() => setShowCreateResourceModal(true)}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl transition-all shadow-md"
+              >
+                <Plus size={16} />
+                <span>Upload Resource</span>
+              </button>
+            )}
+            {activeTab === 'projects' && (
+              <button
+                onClick={() => setShowCreateProjectModal(true)}
+                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl transition-all shadow-md"
+              >
+                <Plus size={16} />
+                <span>Create Project Challenge</span>
               </button>
             )}
           </div>
+        </div>
+      </div>
 
-          {!selectedCourse ? (
-            <div className="bg-[#0F172A] border border-slate-800 rounded-xl p-12 text-center text-slate-400 min-h-[380px] flex flex-col items-center justify-center">
-              <Layers size={48} className="text-slate-700 mb-3" />
-              <p className="font-semibold text-white text-base">Select a course to edit curriculum</p>
-              <p className="text-xs text-slate-500 max-w-sm mt-1">
-                Choose any course from the left panel to manage modules, author lesson markdown content, and design quizzes.
-              </p>
-            </div>
-          ) : loadingDetails ? (
-            <div className="bg-[#0F172A] border border-slate-800 rounded-xl p-12 text-center text-slate-400">
-              <div className="w-8 h-8 border-2 border-[#3895D2] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-              <p className="text-xs font-mono">LOADING CURRICULUM TREE...</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Module adding row form */}
-              {showAddModule && (
-                <form onSubmit={handleAddModule} className="bg-[#1E293B] border border-[#3895D2]/40 p-4 rounded-xl space-y-3 animate-fade-in">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono uppercase font-bold text-[#3895D2]">New Module Title</span>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddModule(false)}
-                      className="text-xs text-slate-400 hover:text-white"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="e.g. Module 1: Introduction to Web Architecture"
-                      value={newModuleTitle}
-                      onChange={(e) => setNewModuleTitle(e.target.value)}
-                      className="flex-1 bg-[#0F172A] border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3895D2]"
-                      autoFocus
-                    />
-                    <button
-                      type="submit"
-                      className="bg-[#3895D2] hover:bg-[#3895D2]/90 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors"
-                    >
-                      Save Module
-                    </button>
-                  </div>
-                </form>
-              )}
+      {/* Tabs Switcher */}
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto">
+        {[
+          { id: 'courses', label: `Courses (${courses.length})`, icon: BookOpen },
+          { id: 'events', label: `Live Events (${events.length})`, icon: Video },
+          { id: 'resources', label: `Resource Hub (${resources.length})`, icon: Download },
+          { id: 'projects', label: `Build Lab Projects (${projects.length})`, icon: Code }
+        ].map((tab) => {
+          const Icon = tab.icon
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4.5 py-2 rounded-xl text-xs md:text-sm font-bold font-heading transition-all flex items-center gap-2 whitespace-nowrap ${
+                activeTab === tab.id
+                  ? 'bg-[#0F172A] text-white shadow-xs'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <Icon size={15} />
+              <span>{tab.label}</span>
+            </button>
+          )
+        })}
+      </div>
 
-              {/* Modules list */}
-              {courseDetails?.modules?.length === 0 ? (
-                <div className="bg-[#0F172A] border border-slate-800 rounded-xl p-8 text-center text-slate-400">
-                  <p className="text-sm font-semibold text-white">This course has no modules yet.</p>
-                  <p className="text-xs text-slate-500 mt-1">Click "Add Module" to start structuring lessons and quizzes.</p>
+      {/* TAB 1: COURSES */}
+      {activeTab === 'courses' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Left Column: Courses list */}
+          <div className="lg:col-span-5 space-y-4">
+            <h2 className="text-xs font-mono uppercase font-bold text-slate-500 tracking-wider">
+              Your Published Courses ({courses.length})
+            </h2>
+
+            {loading ? (
+              <div className="space-y-3">
+                {[1, 2].map(i => <div key={i} className="h-28 bg-slate-100 rounded-xl animate-pulse" />)}
+              </div>
+            ) : courses.length === 0 ? (
+              <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-slate-500">
+                <BookOpen size={36} className="mx-auto mb-2 text-slate-300" />
+                <p className="text-sm font-bold text-slate-800">No courses created yet.</p>
+                <p className="text-xs text-slate-400 mt-1">Click "Create New Course" above to author your first track.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {courses.map(c => {
+                  const isSelected = selectedCourse?._id === c._id
+                  return (
+                    <div
+                      key={c._id}
+                      onClick={() => handleSelectCourse(c)}
+                      className={`bg-white border rounded-2xl p-5 cursor-pointer transition-all shadow-2xs hover:shadow-xs ${
+                        isSelected ? 'border-[#3895D2] ring-2 ring-[#3895D2]/15' : 'border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                          {c.category} · {c.difficulty}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteCourse(c._id, c.title)
+                          }}
+                          className="text-slate-400 hover:text-rose-600 p-1"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                      <h3 className="font-heading font-bold text-slate-850 text-base mb-1">{c.title}</h3>
+                      <p className="text-xs text-slate-500 line-clamp-2 font-medium mb-3">{c.description}</p>
+                      <div className="flex justify-between items-center text-xs font-mono text-slate-400 pt-2 border-t border-slate-100">
+                        <span>{c.moduleCount || 0} Modules</span>
+                        <span className="text-[#3895D2] font-bold">{c.creditsCost || 0} Credits</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: Curriculum Builder */}
+          <div className="lg:col-span-7">
+            {selectedCourse ? (
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs space-y-6">
+                <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+                  <div>
+                    <span className="text-[10px] font-mono font-bold text-[#3895D2] uppercase">CURRICULUM BUILDER</span>
+                    <h3 className="font-heading font-black text-slate-900 text-xl">{selectedCourse.title}</h3>
+                  </div>
+                  <button
+                    onClick={() => setShowAddModule(true)}
+                    className="flex items-center gap-1.5 px-3.5 py-2 bg-[#3895D2] hover:bg-[#2c7db5] text-white text-xs font-bold rounded-xl shadow-xs"
+                  >
+                    <Plus size={14} />
+                    <span>Add Module</span>
+                  </button>
                 </div>
-              ) : (
-                <div className="space-y-3">
+
+                {showAddModule && (
+                  <form onSubmit={handleAddModule} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3 animate-fade-in">
+                    <label className="text-xs font-bold text-slate-700">Module Title</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="e.g. Module 1: Introduction to Web Architecture"
+                        value={newModuleTitle}
+                        onChange={e => setNewModuleTitle(e.target.value)}
+                        className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#3895D2]"
+                        autoFocus
+                      />
+                      <button type="submit" className="px-4 py-2 bg-[#3895D2] text-white text-xs font-bold rounded-xl">Save</button>
+                    </div>
+                  </form>
+                )}
+
+                <div className="space-y-4">
                   {courseDetails?.modules?.map((mod, idx) => (
-                    <div key={mod._id} className="bg-[#0F172A] border border-slate-800 rounded-xl overflow-hidden shadow-sm">
-                      {/* Module Header */}
-                      <div className="p-4 bg-slate-900/80 border-b border-slate-800/80 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className="w-6 h-6 rounded-md bg-[#3895D2]/10 text-[#3895D2] border border-[#3895D2]/30 flex items-center justify-center text-xs font-mono font-bold flex-shrink-0">
-                            {idx + 1}
-                          </span>
-                          <h4 className="font-bold text-white text-sm truncate">{mod.title}</h4>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <button
-                            onClick={() => openAddLesson(mod)}
-                            className="text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-2.5 py-1.5 rounded-md flex items-center gap-1 transition-colors"
-                          >
-                            <Plus size={13} />
-                            <span>Lesson</span>
-                          </button>
-                          <button
-                            onClick={() => openQuizBuilder(mod)}
-                            className={`text-xs font-bold px-2.5 py-1.5 rounded-md flex items-center gap-1 transition-colors ${
-                              mod.quizId
-                                ? 'bg-[#E8A33D]/10 text-[#E8A33D] hover:bg-[#E8A33D]/20 border border-[#E8A33D]/30'
-                                : 'bg-slate-800 text-slate-400 hover:text-white'
-                            }`}
-                          >
-                            <HelpCircle size={13} />
-                            <span>{mod.quizId ? 'Edit Quiz' : '+ Quiz'}</span>
-                          </button>
-                          <button
-                            onClick={() => handleDeleteModule(mod._id, mod.title)}
-                            title="Delete Module"
-                            className="text-slate-500 hover:text-rose-400 p-1.5 rounded-md hover:bg-rose-500/10 transition-colors"
-                          >
-                            <Trash2 size={15} />
-                          </button>
+                    <div key={mod._id} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                      <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                        <span className="text-xs font-bold text-slate-800">Module {idx + 1}: {mod.title}</span>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => openAddLesson(mod)} className="text-xs font-bold text-[#3895D2] hover:underline">+ Lesson</button>
+                          <button onClick={() => openQuizBuilder(mod)} className="text-xs font-bold text-amber-600 hover:underline">+ Quiz</button>
+                          <button onClick={() => handleDeleteModule(mod._id, mod.title)} className="text-slate-400 hover:text-rose-600"><Trash2 size={13} /></button>
                         </div>
                       </div>
-
-                      {/* Module Lessons sub-list */}
-                      <div className="p-3 space-y-2 bg-[#0B0F19]">
-                        {mod.lessons?.length === 0 ? (
-                          <p className="text-xs text-slate-500 italic px-2 py-1">No lessons in this module yet.</p>
-                        ) : (
-                          mod.lessons?.map((les, lIdx) => (
-                            <div
-                              key={les._id}
-                              className="flex items-center justify-between p-2.5 rounded-lg bg-[#0F172A] border border-slate-800/80 hover:border-slate-700 text-xs text-slate-300 group"
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <FileText size={14} className="text-[#3895D2] flex-shrink-0" />
-                                <span className="font-mono text-slate-500">{lIdx + 1}.</span>
-                                <span className="font-medium text-white truncate">{les.title}</span>
-                              </div>
-                              <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100">
-                                <button
-                                  onClick={() => openEditLesson(mod, les)}
-                                  className="text-slate-400 hover:text-[#3895D2] p-1 rounded hover:bg-white/5"
-                                  title="Edit Lesson Content"
-                                >
-                                  <Edit3 size={14} />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteLesson(mod._id, les._id, les.title)}
-                                  className="text-slate-400 hover:text-rose-400 p-1 rounded hover:bg-white/5"
-                                  title="Delete Lesson"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
+                      <div className="p-4 space-y-2">
+                        {mod.lessons?.map((les) => (
+                          <div key={les._id} className="flex justify-between items-center p-2 rounded-lg bg-slate-50 text-xs font-medium">
+                            <span className="text-slate-700 font-semibold">{les.title}</span>
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => openEditLesson(mod, les)} className="text-slate-500 hover:text-slate-900"><Edit3 size={13} /></button>
+                              <button onClick={() => handleDeleteLesson(mod._id, les._id, les.title)} className="text-slate-400 hover:text-rose-600"><Trash2 size={13} /></button>
                             </div>
-                          ))
-                        )}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            ) : (
+              <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400">
+                <Layers size={40} className="mx-auto mb-2 text-slate-300" />
+                <p className="text-base font-bold text-slate-800">Select a course to edit curriculum</p>
+                <p className="text-xs text-slate-500 mt-1">Choose any course from the left panel to manage modules, lessons, and quizzes.</p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* MODAL 1: Create Course Modal */}
+      {/* TAB 2: LIVE EVENTS */}
+      {activeTab === 'events' && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs space-y-6">
+          <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+            <div>
+              <h3 className="font-heading font-black text-slate-900 text-lg">Published Live Events ({events.length})</h3>
+              <p className="text-xs text-slate-500">Live workshops and masterclasses published to students in real-time.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {events.map((e) => (
+              <div key={e._id} className="border border-slate-200 rounded-xl p-5 bg-slate-50/50 flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">{e.type || 'Workshop'}</span>
+                    <button onClick={() => handleDeleteEvent(e._id, e.title)} className="text-slate-400 hover:text-rose-600"><Trash2 size={14} /></button>
+                  </div>
+                  <h4 className="font-heading font-bold text-slate-900 text-base mb-1">{e.title}</h4>
+                  <p className="text-xs text-slate-600 line-clamp-2 font-medium mb-3">{e.description}</p>
+                  <p className="text-xs font-mono text-slate-500">📅 {e.date} · ⏰ {e.time} · 👥 {e.capacity} Seats</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: RESOURCES */}
+      {activeTab === 'resources' && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs space-y-6">
+          <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+            <div>
+              <h3 className="font-heading font-black text-slate-900 text-lg">Published Educational Resources ({resources.length})</h3>
+              <p className="text-xs text-slate-500">Cheat sheets, starter code boilerplates, and system design maps.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {resources.map((r) => (
+              <div key={r._id} className="border border-slate-200 rounded-xl p-5 bg-slate-50/50 flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs font-bold text-purple-800 bg-purple-100 px-2.5 py-0.5 rounded-full">{r.type || 'Cheatsheet'}</span>
+                    <button onClick={() => handleDeleteResource(r._id, r.title)} className="text-slate-400 hover:text-rose-600"><Trash2 size={14} /></button>
+                  </div>
+                  <h4 className="font-heading font-bold text-slate-900 text-base mb-1">{r.title}</h4>
+                  <p className="text-xs text-slate-600 line-clamp-2 font-medium mb-3">{r.description}</p>
+                  <p className="text-xs font-mono text-slate-500">💎 Cost: {r.creditsCost === 0 ? 'FREE' : `${r.creditsCost} Credits`}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: PROJECTS */}
+      {activeTab === 'projects' && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs space-y-6">
+          <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+            <div>
+              <h3 className="font-heading font-black text-slate-900 text-lg">Build Lab Project Challenges ({projects.length})</h3>
+              <p className="text-xs text-slate-500">Real-world projects for students to implement and submit code repositories.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {projects.map((p) => (
+              <div key={p._id} className="border border-slate-200 rounded-xl p-5 bg-slate-50/50 flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full">{p.difficulty || 'Beginner'}</span>
+                    <button onClick={() => handleDeleteProject(p._id, p.title)} className="text-slate-400 hover:text-rose-600"><Trash2 size={14} /></button>
+                  </div>
+                  <h4 className="font-heading font-bold text-slate-900 text-base mb-1">{p.title}</h4>
+                  <p className="text-xs text-slate-600 line-clamp-2 font-medium mb-3">{p.problemStatement}</p>
+                  <p className="text-xs font-mono text-slate-500">Skills: {Array.isArray(p.requiredSkills) ? p.requiredSkills.join(', ') : p.requiredSkills}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 1: CREATE COURSE */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0F172A] border border-slate-800 rounded-2xl max-w-xl w-full p-6 space-y-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <h3 className="text-lg font-bold text-white">Create New Course</h3>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="text-slate-400 hover:text-white text-sm"
-              >
-                ✕
-              </button>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <form onSubmit={handleCreateCourse} className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 md:p-8 shadow-2xl space-y-4 animate-scale-up">
+            <div className="flex justify-between items-center">
+              <h3 className="font-heading font-bold text-slate-900 text-lg">Author New Course</h3>
+              <button type="button" onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
             </div>
-
-            <form onSubmit={handleCreateCourse} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Course Title</label>
+              <input type="text" required value={newCourse.title} onChange={e => setNewCourse({ ...newCourse, title: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Description</label>
+              <textarea rows={3} required value={newCourse.description} onChange={e => setNewCourse({ ...newCourse, description: e.target.value })} className="w-full border rounded-xl p-3 text-xs" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-mono uppercase font-bold text-slate-300 mb-1.5">Course Title</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Master Full-Stack React & Next.js"
-                  value={newCourse.title}
-                  onChange={(e) => setNewCourse({ ...newCourse, title: e.target.value })}
-                  className="w-full bg-[#1E293B] border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#3895D2]"
-                />
+                <label className="block text-xs font-bold text-slate-700 mb-1">Difficulty</label>
+                <select value={newCourse.difficulty} onChange={e => setNewCourse({ ...newCourse, difficulty: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs">
+                  <option value="Beginner">Beginner</option>
+                  <option value="Intermediate">Intermediate</option>
+                  <option value="Advanced">Advanced</option>
+                </select>
               </div>
-
               <div>
-                <label className="block text-xs font-mono uppercase font-bold text-slate-300 mb-1.5">Description</label>
-                <textarea
-                  required
-                  rows={3}
-                  placeholder="A comprehensive course covering end-to-end web architecture, state management, and real-time APIs."
-                  value={newCourse.description}
-                  onChange={(e) => setNewCourse({ ...newCourse, description: e.target.value })}
-                  className="w-full bg-[#1E293B] border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#3895D2]"
-                />
+                <label className="block text-xs font-bold text-slate-700 mb-1">Credits Unlock Cost</label>
+                <input type="number" value={newCourse.creditsCost} onChange={e => setNewCourse({ ...newCourse, creditsCost: Number(e.target.value) })} className="w-full border rounded-xl px-3 py-2 text-xs" />
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <div>
-                  <label className="block text-xs font-mono uppercase font-bold text-slate-300 mb-1.5">Category</label>
-                  <select
-                    value={newCourse.category}
-                    onChange={(e) => setNewCourse({ ...newCourse, category: e.target.value })}
-                    className="w-full bg-[#1E293B] border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#3895D2]"
-                  >
-                    <option value="Web Development">Web Development</option>
-                    <option value="AI & Machine Learning">AI & Machine Learning</option>
-                    <option value="Data Structures">Data Structures</option>
-                    <option value="Cloud Architecture">Cloud Architecture</option>
-                    <option value="Cybersecurity">Cybersecurity</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-mono uppercase font-bold text-slate-300 mb-1.5">Difficulty</label>
-                  <select
-                    value={newCourse.difficulty}
-                    onChange={(e) => setNewCourse({ ...newCourse, difficulty: e.target.value })}
-                    className="w-full bg-[#1E293B] border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#3895D2]"
-                  >
-                    <option value="Beginner">Beginner</option>
-                    <option value="Intermediate">Intermediate</option>
-                    <option value="Advanced">Advanced</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-mono uppercase font-bold text-slate-300 mb-1.5">Est. Hours</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={newCourse.estimatedHours}
-                    onChange={(e) => setNewCourse({ ...newCourse, estimatedHours: Number(e.target.value) })}
-                    className="w-full bg-[#1E293B] border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#3895D2]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-mono uppercase font-bold text-slate-300 mb-1.5">Credits Cost</label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="50 (0 = Free)"
-                    value={newCourse.creditsCost}
-                    onChange={(e) => setNewCourse({ ...newCourse, creditsCost: Number(e.target.value) })}
-                    className="w-full bg-[#1E293B] border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#3895D2]"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#EA4532] hover:bg-[#EA4532]/90 transition-colors shadow-lg"
-                >
-                  Publish Course
-                </button>
-              </div>
-            </form>
-          </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" onClick={() => setShowCreateModal(false)} className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">Cancel</button>
+              <button type="submit" className="px-5 py-2 bg-[#EA4532] text-white rounded-xl text-xs font-bold">Create Course</button>
+            </div>
+          </form>
         </div>
       )}
 
-      {/* MODAL 2: Lesson Markdown Editor */}
+      {/* MODAL 2: CREATE LIVE EVENT */}
+      {showCreateEventModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <form onSubmit={handleCreateEvent} className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 md:p-8 shadow-2xl space-y-4 animate-scale-up">
+            <div className="flex justify-between items-center">
+              <h3 className="font-heading font-bold text-slate-900 text-lg">Schedule Live Event</h3>
+              <button type="button" onClick={() => setShowCreateEventModal(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Event Title</label>
+              <input type="text" required value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Description</label>
+              <textarea rows={3} required value={newEvent.description} onChange={e => setNewEvent({ ...newEvent, description: e.target.value })} className="w-full border rounded-xl p-3 text-xs" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Date</label>
+                <input type="date" value={newEvent.date} onChange={e => setNewEvent({ ...newEvent, date: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Time (e.g. 04:00 PM IST)</label>
+                <input type="text" value={newEvent.time} onChange={e => setNewEvent({ ...newEvent, time: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" onClick={() => setShowCreateEventModal(false)} className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">Cancel</button>
+              <button type="submit" className="px-5 py-2 bg-[#3895D2] text-white rounded-xl text-xs font-bold">Publish Event</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* MODAL 3: CREATE RESOURCE */}
+      {showCreateResourceModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <form onSubmit={handleCreateResource} className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 md:p-8 shadow-2xl space-y-4 animate-scale-up">
+            <div className="flex justify-between items-center">
+              <h3 className="font-heading font-bold text-slate-900 text-lg">Publish Educational Resource</h3>
+              <button type="button" onClick={() => setShowCreateResourceModal(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Resource Title</label>
+              <input type="text" required value={newResource.title} onChange={e => setNewResource({ ...newResource, title: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Description / Summary</label>
+              <textarea rows={3} value={newResource.description} onChange={e => setNewResource({ ...newResource, description: e.target.value })} className="w-full border rounded-xl p-3 text-xs" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Type</label>
+                <select value={newResource.type} onChange={e => setNewResource({ ...newResource, type: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs">
+                  <option value="Cheatsheet">Cheat Sheet</option>
+                  <option value="PDF">PDF Guide</option>
+                  <option value="Template">Starter Template</option>
+                  <option value="Code">Code Bank</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Credits Cost (0 = Free)</label>
+                <input type="number" value={newResource.creditsCost} onChange={e => setNewResource({ ...newResource, creditsCost: Number(e.target.value) })} className="w-full border rounded-xl px-3 py-2 text-xs" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" onClick={() => setShowCreateResourceModal(false)} className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">Cancel</button>
+              <button type="submit" className="px-5 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold">Publish Resource</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* MODAL 4: CREATE PROJECT */}
+      {showCreateProjectModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <form onSubmit={handleCreateProject} className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 md:p-8 shadow-2xl space-y-4 animate-scale-up">
+            <div className="flex justify-between items-center">
+              <h3 className="font-heading font-bold text-slate-900 text-lg">Author Project Challenge</h3>
+              <button type="button" onClick={() => setShowCreateProjectModal(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Project Title</label>
+              <input type="text" required value={newProject.title} onChange={e => setNewProject({ ...newProject, title: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Problem Statement</label>
+              <textarea rows={3} required value={newProject.problemStatement} onChange={e => setNewProject({ ...newProject, problemStatement: e.target.value })} className="w-full border rounded-xl p-3 text-xs" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Difficulty</label>
+                <select value={newProject.difficulty} onChange={e => setNewProject({ ...newProject, difficulty: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs">
+                  <option value="Beginner">Beginner</option>
+                  <option value="Intermediate">Intermediate</option>
+                  <option value="Advanced">Advanced</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Required Skills (Comma separated)</label>
+                <input type="text" value={newProject.requiredSkills} onChange={e => setNewProject({ ...newProject, requiredSkills: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" onClick={() => setShowCreateProjectModal(false)} className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">Cancel</button>
+              <button type="submit" className="px-5 py-2 bg-purple-600 text-white rounded-xl text-xs font-bold">Publish Project</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* MODAL 5: LESSON MODAL */}
       {showLessonModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0F172A] border border-slate-800 rounded-2xl max-w-4xl w-full p-6 space-y-5 shadow-2xl max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3 flex-shrink-0">
-              <div>
-                <span className="text-[10px] font-mono font-bold text-[#3895D2] uppercase">
-                  {activeModuleForLesson?.title}
-                </span>
-                <h3 className="text-lg font-bold text-white">
-                  {editingLessonId ? 'Edit Lesson' : 'Add New Lesson'}
-                </h3>
-              </div>
-              <button
-                onClick={() => setShowLessonModal(false)}
-                className="text-slate-400 hover:text-white text-sm"
-              >
-                ✕
-              </button>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <form onSubmit={handleSaveLesson} className="bg-white border border-slate-200 rounded-2xl max-w-2xl w-full p-6 md:p-8 shadow-2xl space-y-4 animate-scale-up">
+            <div className="flex justify-between items-center">
+              <h3 className="font-heading font-bold text-slate-900 text-lg">Author Lesson</h3>
+              <button type="button" onClick={() => setShowLessonModal(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
             </div>
-
-            <form onSubmit={handleSaveLesson} className="space-y-4 flex-1 flex flex-col overflow-hidden">
-              <div className="flex-shrink-0">
-                <label className="block text-xs font-mono uppercase font-bold text-slate-300 mb-1">Lesson Title</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Understanding Asynchronous JavaScript & Promises"
-                  value={lessonForm.title}
-                  onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })}
-                  className="w-full bg-[#1E293B] border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#3895D2]"
-                />
-              </div>
-
-              <div className="flex-1 flex flex-col min-h-0 space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-mono uppercase font-bold text-slate-300">
-                    Content (Markdown Supported)
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setPreviewMarkdown(!previewMarkdown)}
-                    className="flex items-center gap-1.5 text-xs font-mono text-[#3895D2] hover:text-white"
-                  >
-                    <Eye size={14} />
-                    <span>{previewMarkdown ? 'Switch to Edit' : 'Live Preview'}</span>
-                  </button>
-                </div>
-
-                {previewMarkdown ? (
-                  <div className="flex-1 bg-[#1E293B] border border-slate-700 rounded-xl p-4 overflow-y-auto prose prose-invert max-w-none text-xs text-slate-300">
-                    <pre className="whitespace-pre-wrap font-sans">{lessonForm.content}</pre>
-                  </div>
-                ) : (
-                  <textarea
-                    rows={12}
-                    value={lessonForm.content}
-                    onChange={(e) => setLessonForm({ ...lessonForm, content: e.target.value })}
-                    placeholder="# Lesson Title\n\nExplain your lesson topics here using markdown formatting..."
-                    className="flex-1 w-full bg-[#1E293B] border border-slate-700 rounded-xl p-4 text-xs font-mono text-slate-200 focus:outline-none focus:border-[#3895D2] resize-none"
-                  />
-                )}
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-800 flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setShowLessonModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#3895D2] hover:bg-[#3895D2]/90 shadow-lg"
-                >
-                  <Save size={14} />
-                  <span>Save Lesson</span>
-                </button>
-              </div>
-            </form>
-          </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Lesson Title</label>
+              <input type="text" required value={lessonForm.title} onChange={e => setLessonForm({ ...lessonForm, title: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Markdown Lesson Content</label>
+              <textarea rows={8} required value={lessonForm.content} onChange={e => setLessonForm({ ...lessonForm, content: e.target.value })} className="w-full border rounded-xl p-3 text-xs font-mono" />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" onClick={() => setShowLessonModal(false)} className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">Cancel</button>
+              <button type="submit" className="px-5 py-2 bg-[#3895D2] text-white rounded-xl text-xs font-bold">Save Lesson</button>
+            </div>
+          </form>
         </div>
       )}
 
-      {/* MODAL 3: Quiz Builder */}
+      {/* MODAL 6: QUIZ MODAL */}
       {showQuizModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0F172A] border border-slate-800 rounded-2xl max-w-3xl w-full p-6 space-y-5 shadow-2xl max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3 flex-shrink-0">
-              <div>
-                <span className="text-[10px] font-mono font-bold text-[#E8A33D] uppercase">
-                  {activeModuleForQuiz?.title}
-                </span>
-                <h3 className="text-lg font-bold text-white">Interactive Module Quiz Builder</h3>
-              </div>
-              <button
-                onClick={() => setShowQuizModal(false)}
-                className="text-slate-400 hover:text-white text-sm"
-              >
-                ✕
-              </button>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-2xl w-full p-6 md:p-8 shadow-2xl space-y-4 max-h-[85vh] flex flex-col animate-scale-up">
+            <div className="flex justify-between items-center pb-2 border-b">
+              <h3 className="font-heading font-bold text-slate-900 text-lg">Quiz Authoring Builder</h3>
+              <button type="button" onClick={() => setShowQuizModal(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
             </div>
-
-            <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1">
               {quizQuestions.map((q, qIdx) => (
-                <div key={qIdx} className="bg-[#1E293B] border border-slate-700/80 rounded-xl p-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono font-bold text-white uppercase">
-                      Question {qIdx + 1}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveQuestion(qIdx)}
-                      className="text-slate-400 hover:text-rose-400 p-1"
-                      title="Remove Question"
-                    >
-                      <Trash2 size={15} />
-                    </button>
+                <div key={qIdx} className="p-4 bg-slate-50 border rounded-xl space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-slate-700">Question {qIdx + 1}</span>
+                    <button onClick={() => handleRemoveQuestion(qIdx)} className="text-rose-500 text-xs">Remove</button>
                   </div>
-
-                  <input
-                    type="text"
-                    placeholder="Enter question prompt..."
-                    value={q.text}
-                    onChange={(e) => handleUpdateQuestion(qIdx, 'text', e.target.value)}
-                    className="w-full bg-[#0F172A] border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E8A33D]"
-                  />
-
-                  <div className="space-y-2 pt-2">
-                    <p className="text-[10px] font-mono uppercase text-slate-400 font-bold">
-                      Answer Choices (Select radio for correct answer)
-                    </p>
-                    {q.options.map((opt, optIdx) => (
-                      <div key={optIdx} className="flex items-center gap-2">
-                        <input
-                          type="radio"
-                          name={`correct-${qIdx}`}
-                          checked={q.correctIndex === optIdx}
-                          onChange={() => handleUpdateQuestion(qIdx, 'correctIndex', optIdx)}
-                          className="w-4 h-4 text-[#4FB286] bg-slate-900 border-slate-700 focus:ring-0 cursor-pointer"
-                        />
-                        <span className="text-xs font-mono text-slate-400 w-4">
-                          {String.fromCharCode(65 + optIdx)}.
-                        </span>
-                        <input
-                          type="text"
-                          placeholder={`Option ${String.fromCharCode(65 + optIdx)}`}
-                          value={opt}
-                          onChange={(e) => handleUpdateOption(qIdx, optIdx, e.target.value)}
-                          className="flex-1 bg-[#0F172A] border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-[#4FB286]"
-                        />
+                  <input type="text" placeholder="Question prompt..." value={q.text} onChange={e => handleUpdateQuestion(qIdx, 'text', e.target.value)} className="w-full border rounded-lg px-3 py-1.5 text-xs" />
+                  <div className="grid grid-cols-2 gap-2">
+                    {q.options.map((opt, oIdx) => (
+                      <div key={oIdx} className="flex items-center gap-1.5">
+                        <input type="radio" name={`correct-${qIdx}`} checked={q.correctIndex === oIdx} onChange={() => handleUpdateQuestion(qIdx, 'correctIndex', oIdx)} />
+                        <input type="text" placeholder={`Option ${oIdx + 1}`} value={opt} onChange={e => handleUpdateOption(qIdx, oIdx, e.target.value)} className="w-full border rounded px-2 py-1 text-xs" />
                       </div>
                     ))}
                   </div>
                 </div>
               ))}
-
-              <button
-                type="button"
-                onClick={handleAddQuestion}
-                className="w-full py-3 border border-dashed border-slate-700 hover:border-[#E8A33D] rounded-xl text-xs font-mono text-slate-300 hover:text-[#E8A33D] flex items-center justify-center gap-2 transition-colors"
-              >
-                <Plus size={15} />
-                <span>Add Another Question</span>
-              </button>
+              <button onClick={handleAddQuestion} className="w-full py-2 border-2 border-dashed rounded-xl text-xs font-bold text-[#3895D2] hover:bg-[#3895D2]/5">+ Add Question</button>
             </div>
-
-            <div className="flex justify-end gap-3 pt-3 border-t border-slate-800 flex-shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowQuizModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveQuiz}
-                className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#E8A33D] hover:bg-[#E8A33D]/90 shadow-lg"
-              >
-                <Save size={14} />
-                <span>Save All Questions</span>
-              </button>
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <button type="button" onClick={() => setShowQuizModal(false)} className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">Cancel</button>
+              <button onClick={handleSaveQuiz} className="px-5 py-2 bg-[#3895D2] text-white rounded-xl text-xs font-bold">Save Complete Quiz</button>
             </div>
           </div>
         </div>

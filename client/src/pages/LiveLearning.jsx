@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import api from '../lib/api'
 import {
   Calendar, User, Clock, ArrowRight, Video,
   CheckCircle2, Sparkles, AlertCircle, PlayCircle,
@@ -61,6 +62,7 @@ const EVENTS_DATA = [
 ]
 
 export default function LiveLearning() {
+  const [events, setEvents] = useState(EVENTS_DATA)
   const [registeredEvents, setRegisteredEvents] = useState(() => {
     const saved = localStorage.getItem('REGISTERED_EVENTS')
     return saved ? JSON.parse(saved) : ['live-1']
@@ -68,6 +70,33 @@ export default function LiveLearning() {
   const [filter, setFilter] = useState('ALL')
   const [activeModal, setActiveModal] = useState(null)
   const [toast, setToast] = useState({ msg: '', isErr: false })
+
+  useEffect(() => {
+    async function loadEvents() {
+      try {
+        const res = await api.get('/events')
+        if (res.data?.success && res.data.data?.length > 0) {
+          const dbEvents = res.data.data.map(e => ({
+            id: e._id,
+            title: e.title,
+            desc: e.description,
+            trainer: e.mentor || 'Specialist Instructor',
+            role: 'Mentor & Trainer',
+            date: e.date,
+            time: e.time,
+            seats: e.capacity || 50,
+            status: 'UPCOMING',
+            tags: [e.type || 'Workshop'],
+            meetUrl: 'https://meet.google.com'
+          }))
+          setEvents([...dbEvents, ...EVENTS_DATA])
+        }
+      } catch (err) {
+        console.warn('Using base events:', err.message)
+      }
+    }
+    loadEvents()
+  }, [])
 
   const showToast = (msg, isErr = false) => {
     setToast({ msg, isErr })
@@ -95,7 +124,7 @@ export default function LiveLearning() {
     window.open(url, '_blank')
   }
 
-  const filtered = EVENTS_DATA.filter((e) => {
+  const filtered = events.filter((e) => {
     if (filter === 'ALL') return true
     if (filter === 'UPCOMING') return e.status === 'UPCOMING'
     if (filter === 'RECORDING') return e.status === 'RECORDING'

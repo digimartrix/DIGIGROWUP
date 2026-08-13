@@ -3,6 +3,9 @@ import Course from '../models/Course.js';
 import Module from '../models/Module.js';
 import Lesson from '../models/Lesson.js';
 import Quiz from '../models/Quiz.js';
+import Event from '../models/Event.js';
+import Resource from '../models/Resource.js';
+import Project from '../models/Project.js';
 import ActivityLog from '../models/ActivityLog.js';
 import { protect } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roles.js';
@@ -206,6 +209,135 @@ router.post('/modules/:mid/quiz', async (req, res, next) => {
 
     await logActivity(req.user, 'QUIZ_CREATED', `Quiz for ${mod.title}`, { questionCount: questions.length });
     res.status(201).json(quiz);
+  } catch (err) { next(err); }
+});
+
+// ─── LIVE EVENTS & WORKSHOPS ───────────────────────────
+
+// GET /api/instructor/events — list all events
+router.get('/events', async (req, res, next) => {
+  try {
+    const events = await Event.find({}).sort('-createdAt').lean();
+    res.json(events);
+  } catch (err) { next(err); }
+});
+
+// POST /api/instructor/events — create live event
+router.post('/events', async (req, res, next) => {
+  try {
+    const { title, description, date, time, mentor, capacity, type, creditsCost } = req.body;
+    if (!title || !description || !date || !time) {
+      return res.status(400).json({ message: 'Title, description, date, and time are required.' });
+    }
+
+    const event = await Event.create({
+      title,
+      description,
+      date,
+      time,
+      mentor: mentor || req.user.name,
+      capacity: Number(capacity) || 50,
+      type: type || 'Workshop',
+      creditsCost: Number(creditsCost) || 0,
+    });
+
+    await logActivity(req.user, 'EVENT_CREATED', title);
+    res.status(201).json(event);
+  } catch (err) { next(err); }
+});
+
+// DELETE /api/instructor/events/:id — delete event
+router.delete('/events/:id', async (req, res, next) => {
+  try {
+    const event = await Event.findByIdAndDelete(req.params.id);
+    if (!event) return res.status(404).json({ message: 'Event not found.' });
+    await logActivity(req.user, 'EVENT_DELETED', event.title);
+    res.json({ message: 'Event deleted successfully.' });
+  } catch (err) { next(err); }
+});
+
+// ─── EDUCATIONAL RESOURCES ──────────────────────────────
+
+// GET /api/instructor/resources — list all resources
+router.get('/resources', async (req, res, next) => {
+  try {
+    const resources = await Resource.find({}).sort('-createdAt').lean();
+    res.json(resources);
+  } catch (err) { next(err); }
+});
+
+// POST /api/instructor/resources — publish resource
+router.post('/resources', async (req, res, next) => {
+  try {
+    const { title, description, type, downloadUrl, creditsCost } = req.body;
+    if (!title) return res.status(400).json({ message: 'Resource title is required.' });
+
+    const resource = await Resource.create({
+      title,
+      description: description || '',
+      type: type || 'Cheatsheet',
+      downloadUrl: downloadUrl || '',
+      creditsCost: Number(creditsCost) || 0,
+    });
+
+    await logActivity(req.user, 'RESOURCE_PUBLISHED', title, { creditsCost: resource.creditsCost });
+    res.status(201).json(resource);
+  } catch (err) { next(err); }
+});
+
+// DELETE /api/instructor/resources/:id — delete resource
+router.delete('/resources/:id', async (req, res, next) => {
+  try {
+    const resource = await Resource.findByIdAndDelete(req.params.id);
+    if (!resource) return res.status(404).json({ message: 'Resource not found.' });
+    await logActivity(req.user, 'RESOURCE_DELETED', resource.title);
+    res.json({ message: 'Resource deleted successfully.' });
+  } catch (err) { next(err); }
+});
+
+// ─── BUILD LAB PROJECTS ─────────────────────────────────
+
+// GET /api/instructor/projects — list all projects
+router.get('/projects', async (req, res, next) => {
+  try {
+    const projects = await Project.find({}).sort('-createdAt').lean();
+    res.json(projects);
+  } catch (err) { next(err); }
+});
+
+// POST /api/instructor/projects — create project
+router.post('/projects', async (req, res, next) => {
+  try {
+    const { title, problemStatement, difficulty, requiredSkills, technology, milestones } = req.body;
+    if (!title || !problemStatement) {
+      return res.status(400).json({ message: 'Title and problem statement are required.' });
+    }
+
+    const project = await Project.create({
+      title,
+      problemStatement,
+      difficulty: difficulty || 'Beginner',
+      requiredSkills: Array.isArray(requiredSkills) ? requiredSkills : (requiredSkills ? requiredSkills.split(',').map(s => s.trim()) : []),
+      technology: Array.isArray(technology) ? technology : (technology ? technology.split(',').map(s => s.trim()) : []),
+      milestones: Array.isArray(milestones) && milestones.length > 0 ? milestones : [
+        { title: 'Project Initialization & Architecture Setup', description: 'Configure project repositories and base dependencies.', order: 1 },
+        { title: 'Core Implementation & State Logic', description: 'Build foundational components and data logic.', order: 2 },
+        { title: 'Production Deployment & Verification', description: 'Deploy live build and test edge cases.', order: 3 }
+      ]
+    });
+
+    await logActivity(req.user, 'PROJECT_CREATED', title);
+    res.status(201).json(project);
+  } catch (err) { next(err); }
+});
+
+// DELETE /api/instructor/projects/:id — delete project
+router.delete('/projects/:id', async (req, res, next) => {
+  try {
+    const project = await Project.findByIdAndDelete(req.params.id);
+    if (!project) return res.status(404).json({ message: 'Project not found.' });
+    await logActivity(req.user, 'PROJECT_DELETED', project.title);
+    res.json({ message: 'Project deleted successfully.' });
   } catch (err) { next(err); }
 });
 
