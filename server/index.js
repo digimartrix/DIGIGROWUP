@@ -93,8 +93,9 @@ import { protect } from './middleware/auth.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Serve static uploads
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Serve static uploads safely
+const staticUploadsDir = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(__dirname, 'uploads');
+app.use('/uploads', express.static(staticUploadsDir));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);

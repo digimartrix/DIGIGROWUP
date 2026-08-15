@@ -11,29 +11,41 @@ const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-// Ensure upload directories exist
-const uploadBaseDir = path.join(__dirname, '..', 'uploads');
+// Ensure upload directories exist safely in serverless (/tmp) and local environments
+const uploadBaseDir = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(__dirname, '..', 'uploads');
 const videoDir = path.join(uploadBaseDir, 'videos');
 const pdfDir = path.join(uploadBaseDir, 'documents');
 const imageDir = path.join(uploadBaseDir, 'images');
 
 [uploadBaseDir, videoDir, pdfDir, imageDir].forEach((dir) => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+  try {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  } catch (err) {
+    console.warn('[UPLOADS] Could not create upload directory:', err.message);
   }
 });
 
 // Configure Multer Storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    if (file.mimetype.startsWith('video/')) {
-      cb(null, videoDir);
-    } else if (file.mimetype === 'application/pdf') {
-      cb(null, pdfDir);
-    } else if (file.mimetype.startsWith('image/')) {
-      cb(null, imageDir);
-    } else {
-      cb(null, uploadBaseDir);
+    try {
+      if (file.mimetype.startsWith('video/')) {
+        if (!fs.existsSync(videoDir)) fs.mkdirSync(videoDir, { recursive: true });
+        cb(null, videoDir);
+      } else if (file.mimetype === 'application/pdf') {
+        if (!fs.existsSync(pdfDir)) fs.mkdirSync(pdfDir, { recursive: true });
+        cb(null, pdfDir);
+      } else if (file.mimetype.startsWith('image/')) {
+        if (!fs.existsSync(imageDir)) fs.mkdirSync(imageDir, { recursive: true });
+        cb(null, imageDir);
+      } else {
+        if (!fs.existsSync(uploadBaseDir)) fs.mkdirSync(uploadBaseDir, { recursive: true });
+        cb(null, uploadBaseDir);
+      }
+    } catch (e) {
+      cb(null, '/tmp');
     }
   },
   filename: (req, file, cb) => {
