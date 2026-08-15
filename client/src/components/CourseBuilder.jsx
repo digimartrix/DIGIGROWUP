@@ -143,18 +143,24 @@ export default function CourseBuilder({ isOpen, onClose, initialCourseId = null,
     setSaving(true)
     setError(null)
     try {
+      const fallbackTitle = formData.title?.trim() || `${formData.category || 'Software Engineering'} Masterclass`
+      const fallbackDesc = formData.description?.trim() || 'Comprehensive course curriculum and hands-on projects.'
+      
       const payload = {
         ...formData,
+        title: fallbackTitle,
+        description: fallbackDesc,
         courseType: selectedType,
       }
       const { data } = await api.post('/instructor/courses', payload)
       setCourseId(data._id)
       setCourse(data)
-      setFormData(prev => ({ ...prev, courseType: selectedType }))
+      setFormData(prev => ({ ...prev, title: fallbackTitle, description: fallbackDesc, courseType: selectedType }))
       setStep(3)
-      setSuccessMsg('Course initialized! Now build your curriculum below.')
+      setSuccessMsg('Course initialized! You can now add modules and lessons below.')
       setTimeout(() => setSuccessMsg(null), 3500)
       loadCourse(data._id)
+      if (onSaved) onSaved()
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to initialize course.')
     } finally {
