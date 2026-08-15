@@ -3,6 +3,9 @@ import Course from '../models/Course.js';
 import Module from '../models/Module.js';
 import Lesson from '../models/Lesson.js';
 import Quiz from '../models/Quiz.js';
+import QuizAttempt from '../models/QuizAttempt.js';
+import Enrollment from '../models/Enrollment.js';
+import LessonProgress from '../models/LessonProgress.js';
 import Event from '../models/Event.js';
 import Resource from '../models/Resource.js';
 import Project from '../models/Project.js';
@@ -29,44 +32,143 @@ const logActivity = async (user, action, target, metadata = {}) => {
   } catch (e) { console.error('[LOG]', e.message); }
 };
 
-// ─── COURSES ───────────────────────────────────────────
+// ─── STATS & OVERVIEW ───────────────────────────────────
 
-// GET /api/instructor/courses — list courses by this instructor
+// GET /api/instructor/stats — aggregated real-time instructor metrics
+router.get('/stats', async (req, res, next) => {
+  try {
+    const instructorId = req.user.id;
+    const courses = await Course.find({ createdBy: instructorId }).lean();
+    const courseIds = courses.map(c => c._id);
+
+    const totalCourses = courses.length;
+    const publishedCourses = courses.filter(c => c.status === 'published').length;
+    const draftCourses = courses.filter(c => c.status === 'draft').length;
+    const pendingCourses = courses.filter(c => ['submitted', 'under_review'].includes(c.status)).length;
+
+    // Get all enrollments across instructor's courses
+    const enrollments = await Enrollment.find({ courseId: { $in: courseIds } }).lean();
+    const uniqueStudents = new Set(enrollments.map(e => e.userId.toString()));
+    const totalStudents = uniqueStudents.size;
+
+    const totalProgress = enrollments.reduce((sum, e) => sum + (e.progress || 0), 0);
+    const avgCompletion = enrollments.length > 0 ? Math.round(totalProgress / enrollments.length) : 0;
+
+    res.json({
+      totalCourses,
+      publishedCourses,
+      draftCourses,
+      pendingCourses,
+      totalStudents,
+      totalEnrollments: enrollments.length,
+      avgCompletion,
+    });
+  } catch (err) { next(err); }
+});
+
+// ─── COURSE DIRECTORY & CRUD ────────────────────────────
+
+// GET /api/instructor/courses — list all courses created by this instructor
 router.get('/courses', async (req, res, next) => {
   try {
     const courses = await Course.find({ createdBy: req.user.id }).sort('-createdAt').lean();
-    // Attach module count per course
+
     const enriched = await Promise.all(courses.map(async (c) => {
-      const moduleCount = await Module.countDocuments({ courseId: c._id });
-      const lessonCount = await Lesson.countDocuments({ moduleId: { $in: (await Module.find({ courseId: c._id }).select('_id').lean()).map(m => m._id) } });
-      return { ...c, moduleCount, lessonCount };
+      const modules = await Module.find({ courseId: c._id }).sort('order').lean();
+      const moduleIds = modules.map(m => m._id);
+      const lessons = await Lesson.find({ moduleId: { $in: moduleIds } }).sort('order').lean();
+      
+      const enrollments = await Enrollment.find({ courseId: c._id }).lean();
+      const totalProgress = enrollments.reduce((sum, e) => sum + (e.progress || 0), 0);
+      const avgCompletion = enrollments.length > 0 ? Math.round(totalProgress / enrollments.length) : 0;
+
+      return {
+        ...c,
+        modules,
+        moduleCount: modules.length,
+        lessonCount: lessons.length,
+        enrolledStudentsCount: enrollments.length,
+        avgCompletion,
+      };
     }));
+
     res.json(enriched);
   } catch (err) { next(err); }
 });
 
-// POST /api/instructor/courses — create a new course
+// GET /api/instructor/courses/:id — get full course structure for builder
+router.get('/courses/:id', async (req, res, next) => {
+  try {
+    const course = await Course.findOne({ _id: req.params.id, createdBy: req.user.id }).lean();
+    if (!course) return res.status(404).json({ message: 'Course not found or unauthorized.' });
+
+    const modules = await Module.find({ courseId: course._id }).sort('order').lean();
+    const modulesWithLessons = await Promise.all(
+      modules.map(async (mod) => {
+        const lessons = await Lesson.find({ moduleId: mod._id }).sort('order').lean();
+        const quiz = await Quiz.findOne({ moduleId: mod._id }).lean();
+        return { ...mod, lessons, quiz };
+      })
+    );
+
+    res.json({
+      ...course,
+      modules: modulesWithLessons,
+    });
+  } catch (err) { next(err); }
+});
+
+// POST /api/instructor/courses — create a new course (Step 1 Info + Step 2 Course Type)
 router.post('/courses', async (req, res, next) => {
   try {
-    const { title, description, category, difficulty, estimatedHours, creditsCost } = req.body;
-    if (!title || !description) return res.status(400).json({ message: 'Title and description are required.' });
+    const {
+      title,
+      description,
+      category,
+      difficulty,
+      estimatedHours,
+      estimatedDuration,
+      thumbnail,
+      creditsCost,
+      courseType = 'video',
+      learningObjectives = [],
+      prerequisites = [],
+    } = req.body;
+
+    if (!title || !description) {
+      return res.status(400).json({ message: 'Course title and description are required.' });
+    }
 
     const course = await Course.create({
       title,
       description,
       category: category || 'General',
       difficulty: difficulty || 'Beginner',
-      estimatedHours: estimatedHours || 0,
-      creditsCost: creditsCost !== undefined ? Number(creditsCost) : 50,
+      estimatedHours: estimatedHours || 10,
+      estimatedDuration: estimatedDuration || `${estimatedHours || 10} hours`,
+      thumbnail: thumbnail || '',
+      creditsCost: creditsCost !== undefined ? Number(creditsCost) : 0,
+      courseType: courseType === 'pdf' ? 'pdf' : 'video',
+      status: 'draft',
+      learningObjectives: Array.isArray(learningObjectives) ? learningObjectives : [],
+      prerequisites: Array.isArray(prerequisites) ? prerequisites : [],
       createdBy: req.user.id,
+      instructorId: req.user.id,
     });
 
-    await logActivity(req.user, 'COURSE_CREATED', title, { creditsCost: course.creditsCost });
-    res.status(201).json(course);
+    // Create an initial default module so the curriculum builder is immediately ready
+    const firstModule = await Module.create({
+      courseId: course._id,
+      title: courseType === 'pdf' ? 'Chapter 1 — Fundamentals' : 'Module 1 — Introduction',
+      order: 1,
+    });
+
+    await logActivity(req.user, 'COURSE_CREATED', title, { courseType, courseId: course._id });
+    res.status(201).json({ ...course.toObject(), modules: [firstModule] });
   } catch (err) { next(err); }
 });
 
-// PUT /api/instructor/courses/:id — update a course
+// PUT /api/instructor/courses/:id — update course metadata or save draft
 router.put('/courses/:id', async (req, res, next) => {
   try {
     const course = await Course.findOneAndUpdate(
@@ -77,6 +179,32 @@ router.put('/courses/:id', async (req, res, next) => {
     if (!course) return res.status(404).json({ message: 'Course not found or not yours.' });
     await logActivity(req.user, 'COURSE_UPDATED', course.title);
     res.json(course);
+  } catch (err) { next(err); }
+});
+
+// POST /api/instructor/courses/:id/submit — submit course for Admin Review
+router.post('/courses/:id/submit', async (req, res, next) => {
+  try {
+    const course = await Course.findOne({ _id: req.params.id, createdBy: req.user.id });
+    if (!course) return res.status(404).json({ message: 'Course not found.' });
+
+    // Validate that course has at least 1 module and 1 lesson
+    const modules = await Module.find({ courseId: course._id }).select('_id').lean();
+    const moduleIds = modules.map(m => m._id);
+    const lessonCount = await Lesson.countDocuments({ moduleId: { $in: moduleIds } });
+
+    if (modules.length === 0 || lessonCount === 0) {
+      return res.status(400).json({
+        message: 'A course must have at least 1 module and 1 lesson before submitting for review.',
+      });
+    }
+
+    course.status = 'submitted';
+    course.rejectionReason = '';
+    await course.save();
+
+    await logActivity(req.user, 'COURSE_SUBMITTED', course.title);
+    res.json({ success: true, message: 'Course submitted for admin review!', course });
   } catch (err) { next(err); }
 });
 
@@ -93,48 +221,56 @@ router.delete('/courses/:id', async (req, res, next) => {
       Lesson.deleteMany({ moduleId: { $in: moduleIds } }),
       Quiz.deleteMany({ moduleId: { $in: moduleIds } }),
       Module.deleteMany({ courseId: course._id }),
+      Enrollment.deleteMany({ courseId: course._id }),
+      LessonProgress.deleteMany({ courseId: course._id }),
       Course.deleteOne({ _id: course._id }),
     ]);
 
     await logActivity(req.user, 'COURSE_DELETED', course.title);
-    res.json({ message: 'Course and all content deleted.' });
+    res.json({ message: 'Course and all associated content deleted successfully.' });
   } catch (err) { next(err); }
 });
 
-// ─── MODULES ───────────────────────────────────────────
+// ─── MODULES (CHAPTERS) ─────────────────────────────────
 
-// POST /api/instructor/courses/:id/modules — add module
+// POST /api/instructor/courses/:id/modules — add a new module/chapter
 router.post('/courses/:id/modules', async (req, res, next) => {
   try {
+    const { title } = req.body;
+    if (!title?.trim()) return res.status(400).json({ message: 'Module title is required.' });
+
     const course = await Course.findOne({ _id: req.params.id, createdBy: req.user.id });
     if (!course) return res.status(404).json({ message: 'Course not found.' });
 
-    const count = await Module.countDocuments({ courseId: course._id });
-    const mod = await Module.create({
-      title: req.body.title || 'New Module',
+    const existingCount = await Module.countDocuments({ courseId: course._id });
+    const module = await Module.create({
       courseId: course._id,
-      order: count + 1,
+      title: title.trim(),
+      order: existingCount + 1,
     });
 
-    await logActivity(req.user, 'MODULE_CREATED', mod.title, { courseTitle: course.title });
-    res.status(201).json(mod);
+    res.status(201).json({ ...module.toObject(), lessons: [] });
   } catch (err) { next(err); }
 });
 
-// PUT /api/instructor/courses/:id/modules/:mid — update module
-router.put('/courses/:id/modules/:mid', async (req, res, next) => {
+// PUT /api/instructor/modules/:id — rename or reorder module
+router.put('/modules/:id', async (req, res, next) => {
   try {
-    const mod = await Module.findByIdAndUpdate(req.params.mid, { $set: req.body }, { new: true });
+    const { title, order } = req.body;
+    const updateData = {};
+    if (title) updateData.title = title.trim();
+    if (order !== undefined) updateData.order = Number(order);
+
+    const mod = await Module.findByIdAndUpdate(req.params.id, { $set: updateData }, { new: true });
     if (!mod) return res.status(404).json({ message: 'Module not found.' });
-    await logActivity(req.user, 'MODULE_UPDATED', mod.title);
     res.json(mod);
   } catch (err) { next(err); }
 });
 
-// DELETE /api/instructor/courses/:id/modules/:mid — delete module + children
-router.delete('/courses/:id/modules/:mid', async (req, res, next) => {
+// DELETE /api/instructor/modules/:id — delete module and its lessons
+router.delete('/modules/:id', async (req, res, next) => {
   try {
-    const mod = await Module.findById(req.params.mid);
+    const mod = await Module.findById(req.params.id);
     if (!mod) return res.status(404).json({ message: 'Module not found.' });
 
     await Promise.all([
@@ -143,201 +279,171 @@ router.delete('/courses/:id/modules/:mid', async (req, res, next) => {
       Module.deleteOne({ _id: mod._id }),
     ]);
 
-    await logActivity(req.user, 'MODULE_DELETED', mod.title);
-    res.json({ message: 'Module deleted.' });
+    res.json({ message: 'Module and its lessons removed.' });
   } catch (err) { next(err); }
 });
 
-// ─── LESSONS ───────────────────────────────────────────
+// ─── LESSONS (VIDEO & PDF) ──────────────────────────────
 
-// POST /api/instructor/modules/:mid/lessons — add lesson
-router.post('/modules/:mid/lessons', async (req, res, next) => {
+// POST /api/instructor/modules/:id/lessons — add video or PDF lesson
+router.post('/modules/:id/lessons', async (req, res, next) => {
   try {
-    const mod = await Module.findById(req.params.mid);
+    const {
+      title,
+      description = '',
+      type = 'video',
+      contentUrl = '',
+      fileName = '',
+      fileSize = 0,
+      duration = 0,
+      content = '',
+      uploadStatus = 'ready',
+    } = req.body;
+
+    if (!title?.trim()) return res.status(400).json({ message: 'Lesson title is required.' });
+
+    const mod = await Module.findById(req.params.id);
     if (!mod) return res.status(404).json({ message: 'Module not found.' });
 
-    const count = await Lesson.countDocuments({ moduleId: mod._id });
+    const existingCount = await Lesson.countDocuments({ moduleId: mod._id });
+
     const lesson = await Lesson.create({
-      title: req.body.title || 'New Lesson',
+      courseId: mod.courseId,
       moduleId: mod._id,
-      content: req.body.content || '# New Lesson\n\nStart writing your lesson content here...',
-      order: count + 1,
+      title: title.trim(),
+      description,
+      type: type || 'video',
+      contentUrl,
+      fileName,
+      fileSize: Number(fileSize) || 0,
+      duration: Number(duration) || 0,
+      content,
+      uploadStatus: uploadStatus || 'ready',
+      order: existingCount + 1,
     });
 
-    await logActivity(req.user, 'LESSON_CREATED', lesson.title, { moduleTitle: mod.title });
     res.status(201).json(lesson);
   } catch (err) { next(err); }
 });
 
-// PUT /api/instructor/modules/:mid/lessons/:lid — update lesson
-router.put('/modules/:mid/lessons/:lid', async (req, res, next) => {
+// PUT /api/instructor/lessons/:id — update or replace lesson content
+router.put('/lessons/:id', async (req, res, next) => {
   try {
-    const lesson = await Lesson.findByIdAndUpdate(req.params.lid, { $set: req.body }, { new: true });
+    const lesson = await Lesson.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true }
+    );
     if (!lesson) return res.status(404).json({ message: 'Lesson not found.' });
-    await logActivity(req.user, 'LESSON_UPDATED', lesson.title);
     res.json(lesson);
   } catch (err) { next(err); }
 });
 
-// DELETE /api/instructor/modules/:mid/lessons/:lid — delete lesson
-router.delete('/modules/:mid/lessons/:lid', async (req, res, next) => {
+// DELETE /api/instructor/lessons/:id — delete lesson
+router.delete('/lessons/:id', async (req, res, next) => {
   try {
-    const lesson = await Lesson.findById(req.params.lid);
+    const lesson = await Lesson.findByIdAndDelete(req.params.id);
     if (!lesson) return res.status(404).json({ message: 'Lesson not found.' });
-    await Lesson.deleteOne({ _id: lesson._id });
-    await logActivity(req.user, 'LESSON_DELETED', lesson.title);
-    res.json({ message: 'Lesson deleted.' });
+    res.json({ message: 'Lesson deleted successfully.' });
   } catch (err) { next(err); }
 });
 
-// ─── QUIZZES ───────────────────────────────────────────
+// ─── REORDERING ─────────────────────────────────────────
 
-// POST /api/instructor/modules/:mid/quiz — create or replace quiz
-router.post('/modules/:mid/quiz', async (req, res, next) => {
+// PUT /api/instructor/courses/:id/reorder — bulk reorder modules and lessons
+router.put('/courses/:id/reorder', async (req, res, next) => {
   try {
-    const mod = await Module.findById(req.params.mid);
-    if (!mod) return res.status(404).json({ message: 'Module not found.' });
+    const { modules } = req.body; // Array of { id, order, lessons: [{ id, order }] }
+    if (!Array.isArray(modules)) return res.status(400).json({ message: 'Invalid payload.' });
 
-    const { questions } = req.body;
-    if (!questions || !Array.isArray(questions) || questions.length === 0) {
-      return res.status(400).json({ message: 'At least one question is required.' });
-    }
-
-    // Upsert: delete old quiz if exists, create new
-    await Quiz.deleteMany({ moduleId: mod._id });
-    const quiz = await Quiz.create({ moduleId: mod._id, questions });
-
-    await logActivity(req.user, 'QUIZ_CREATED', `Quiz for ${mod.title}`, { questionCount: questions.length });
-    res.status(201).json(quiz);
-  } catch (err) { next(err); }
-});
-
-// ─── LIVE EVENTS & WORKSHOPS ───────────────────────────
-
-// GET /api/instructor/events — list all events
-router.get('/events', async (req, res, next) => {
-  try {
-    const events = await Event.find({}).sort('-createdAt').lean();
-    res.json(events);
-  } catch (err) { next(err); }
-});
-
-// POST /api/instructor/events — create live event
-router.post('/events', async (req, res, next) => {
-  try {
-    const { title, description, date, time, mentor, capacity, type, creditsCost } = req.body;
-    if (!title || !description || !date || !time) {
-      return res.status(400).json({ message: 'Title, description, date, and time are required.' });
-    }
-
-    const event = await Event.create({
-      title,
-      description,
-      date,
-      time,
-      mentor: mentor || req.user.name,
-      capacity: Number(capacity) || 50,
-      type: type || 'Workshop',
-      creditsCost: Number(creditsCost) || 0,
+    const modulePromises = modules.map((m, mIdx) => {
+      const updateMod = Module.findByIdAndUpdate(m.id, { $set: { order: mIdx + 1 } });
+      const lessonPromises = (m.lessons || []).map((l, lIdx) =>
+        Lesson.findByIdAndUpdate(l.id, { $set: { order: lIdx + 1, moduleId: m.id } })
+      );
+      return Promise.all([updateMod, ...lessonPromises]);
     });
 
-    await logActivity(req.user, 'EVENT_CREATED', title);
-    res.status(201).json(event);
+    await Promise.all(modulePromises);
+    res.json({ success: true, message: 'Curriculum structure saved.' });
   } catch (err) { next(err); }
 });
 
-// DELETE /api/instructor/events/:id — delete event
-router.delete('/events/:id', async (req, res, next) => {
+// ─── COURSE ANALYTICS & STUDENTS ────────────────────────
+
+// GET /api/instructor/courses/:id/analytics — real student engagement metrics
+router.get('/courses/:id/analytics', async (req, res, next) => {
   try {
-    const event = await Event.findByIdAndDelete(req.params.id);
-    if (!event) return res.status(404).json({ message: 'Event not found.' });
-    await logActivity(req.user, 'EVENT_DELETED', event.title);
-    res.json({ message: 'Event deleted successfully.' });
-  } catch (err) { next(err); }
-});
+    const course = await Course.findOne({ _id: req.params.id, createdBy: req.user.id }).lean();
+    if (!course) return res.status(404).json({ message: 'Course not found.' });
 
-// ─── EDUCATIONAL RESOURCES ──────────────────────────────
+    const modules = await Module.find({ courseId: course._id }).sort('order').lean();
+    const moduleIds = modules.map(m => m._id);
+    const lessons = await Lesson.find({ moduleId: { $in: moduleIds } }).sort('order').lean();
+    const enrollments = await Enrollment.find({ courseId: course._id }).populate('userId', 'name email').lean();
 
-// GET /api/instructor/resources — list all resources
-router.get('/resources', async (req, res, next) => {
-  try {
-    const resources = await Resource.find({}).sort('-createdAt').lean();
-    res.json(resources);
-  } catch (err) { next(err); }
-});
+    const totalEnrollments = enrollments.length;
+    const completedStudents = enrollments.filter(e => e.progress === 100).length;
+    const activeStudents = enrollments.filter(e => e.progress > 0 && e.progress < 100).length;
+    const totalProgress = enrollments.reduce((sum, e) => sum + (e.progress || 0), 0);
+    const avgProgress = totalEnrollments > 0 ? Math.round(totalProgress / totalEnrollments) : 0;
+    const completionRate = totalEnrollments > 0 ? Math.round((completedStudents / totalEnrollments) * 100) : 0;
 
-// POST /api/instructor/resources — publish resource
-router.post('/resources', async (req, res, next) => {
-  try {
-    const { title, description, type, downloadUrl, creditsCost } = req.body;
-    if (!title) return res.status(400).json({ message: 'Resource title is required.' });
-
-    const resource = await Resource.create({
-      title,
-      description: description || '',
-      type: type || 'Cheatsheet',
-      downloadUrl: downloadUrl || '',
-      creditsCost: Number(creditsCost) || 0,
+    // Lesson-by-lesson completion breakdown
+    const lessonBreakdown = lessons.map(lesson => {
+      const completedCount = enrollments.filter(e =>
+        (e.completedLessons || []).some(id => id.toString() === lesson._id.toString())
+      ).length;
+      return {
+        lessonId: lesson._id,
+        title: lesson.title,
+        type: lesson.type,
+        completedCount,
+        completionRate: totalEnrollments > 0 ? Math.round((completedCount / totalEnrollments) * 100) : 0,
+      };
     });
 
-    await logActivity(req.user, 'RESOURCE_PUBLISHED', title, { creditsCost: resource.creditsCost });
-    res.status(201).json(resource);
-  } catch (err) { next(err); }
-});
-
-// DELETE /api/instructor/resources/:id — delete resource
-router.delete('/resources/:id', async (req, res, next) => {
-  try {
-    const resource = await Resource.findByIdAndDelete(req.params.id);
-    if (!resource) return res.status(404).json({ message: 'Resource not found.' });
-    await logActivity(req.user, 'RESOURCE_DELETED', resource.title);
-    res.json({ message: 'Resource deleted successfully.' });
-  } catch (err) { next(err); }
-});
-
-// ─── BUILD LAB PROJECTS ─────────────────────────────────
-
-// GET /api/instructor/projects — list all projects
-router.get('/projects', async (req, res, next) => {
-  try {
-    const projects = await Project.find({}).sort('-createdAt').lean();
-    res.json(projects);
-  } catch (err) { next(err); }
-});
-
-// POST /api/instructor/projects — create project
-router.post('/projects', async (req, res, next) => {
-  try {
-    const { title, problemStatement, difficulty, requiredSkills, technology, milestones } = req.body;
-    if (!title || !problemStatement) {
-      return res.status(400).json({ message: 'Title and problem statement are required.' });
-    }
-
-    const project = await Project.create({
-      title,
-      problemStatement,
-      difficulty: difficulty || 'Beginner',
-      requiredSkills: Array.isArray(requiredSkills) ? requiredSkills : (requiredSkills ? requiredSkills.split(',').map(s => s.trim()) : []),
-      technology: Array.isArray(technology) ? technology : (technology ? technology.split(',').map(s => s.trim()) : []),
-      milestones: Array.isArray(milestones) && milestones.length > 0 ? milestones : [
-        { title: 'Project Initialization & Architecture Setup', description: 'Configure project repositories and base dependencies.', order: 1 },
-        { title: 'Core Implementation & State Logic', description: 'Build foundational components and data logic.', order: 2 },
-        { title: 'Production Deployment & Verification', description: 'Deploy live build and test edge cases.', order: 3 }
-      ]
+    res.json({
+      courseTitle: course.title,
+      courseType: course.courseType,
+      status: course.status,
+      totalEnrollments,
+      activeStudents,
+      completedStudents,
+      avgProgress,
+      completionRate,
+      totalModules: modules.length,
+      totalLessons: lessons.length,
+      lessonBreakdown,
     });
-
-    await logActivity(req.user, 'PROJECT_CREATED', title);
-    res.status(201).json(project);
   } catch (err) { next(err); }
 });
 
-// DELETE /api/instructor/projects/:id — delete project
-router.delete('/projects/:id', async (req, res, next) => {
+// GET /api/instructor/courses/:id/students — list enrolled students with real progress
+router.get('/courses/:id/students', async (req, res, next) => {
   try {
-    const project = await Project.findByIdAndDelete(req.params.id);
-    if (!project) return res.status(404).json({ message: 'Project not found.' });
-    await logActivity(req.user, 'PROJECT_DELETED', project.title);
-    res.json({ message: 'Project deleted successfully.' });
+    const course = await Course.findOne({ _id: req.params.id, createdBy: req.user.id }).lean();
+    if (!course) return res.status(404).json({ message: 'Course not found.' });
+
+    const enrollments = await Enrollment.find({ courseId: course._id })
+      .populate('userId', 'name email role avatar')
+      .populate('lastAccessedLesson', 'title type')
+      .sort('-updatedAt')
+      .lean();
+
+    const students = enrollments.map(e => ({
+      enrollmentId: e._id,
+      studentId: e.userId?._id,
+      name: e.userId?.name || 'Enrolled Student',
+      email: e.userId?.email || 'student@example.com',
+      progress: e.progress || 0,
+      status: e.status || 'active',
+      enrolledAt: e.enrolledAt,
+      completedAt: e.completedAt,
+      lastAccessedLesson: e.lastAccessedLesson ? e.lastAccessedLesson.title : 'Not started',
+    }));
+
+    res.json(students);
   } catch (err) { next(err); }
 });
 

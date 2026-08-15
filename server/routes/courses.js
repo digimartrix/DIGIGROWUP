@@ -4,6 +4,7 @@ import Module from '../models/Module.js';
 import Lesson from '../models/Lesson.js';
 import Quiz from '../models/Quiz.js';
 import Enrollment from '../models/Enrollment.js';
+import LessonProgress from '../models/LessonProgress.js';
 import User from '../models/User.js';
 import CreditTransaction from '../models/CreditTransaction.js';
 import ActivityLog from '../models/ActivityLog.js';
@@ -12,18 +13,138 @@ import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// GET /api/courses — returns all courses (brief list)
+// GET /api/courses — returns catalog courses (for students: published courses only)
 router.get('/', protect, async (req, res, next) => {
   try {
-    const courses = await Course.find({}).lean();
-    res.json(courses);
+    const { category, difficulty, courseType, search } = req.query;
+    
+    // Students only see published courses; Admins/Instructors can see all if requested
+    const filter = { status: 'published' };
+
+    if (category && category !== 'All') {
+      filter.category = new RegExp(category, 'i');
+    }
+    if (difficulty && difficulty !== 'All') {
+      filter.difficulty = difficulty;
+    }
+    if (courseType && courseType !== 'All') {
+      filter.courseType = courseType;
+    }
+    if (search) {
+      filter.$or = [
+        { title: new RegExp(search, 'i') },
+        { description: new RegExp(search, 'i') },
+        { category: new RegExp(search, 'i') },
+      ];
+    }
+
+    const courses = await Course.find(filter)
+      .populate('createdBy', 'name email role')
+      .populate('instructorId', 'name email role')
+      .sort('-createdAt')
+      .lean();
+
+    // Get all enrollments for current user to mark isEnrolled
+    const userEnrollments = await Enrollment.find({ userId: req.user.id }).lean();
+    const enrolledMap = new Map(userEnrollments.map(e => [e.courseId.toString(), e]));
+
+    // Attach modules, lessons count, and enrollment state
+    const enriched = await Promise.all(
+      courses.map(async (c) => {
+        const modules = await Module.find({ courseId: c._id }).select('_id').lean();
+        const moduleIds = modules.map(m => m._id);
+        const lessonCount = await Lesson.countDocuments({ moduleId: { $in: moduleIds } });
+        const enrollment = enrolledMap.get(c._id.toString());
+
+        return {
+          ...c,
+          moduleCount: modules.length,
+          lessonCount,
+          isEnrolled: !!enrollment,
+          progress: enrollment ? enrollment.progress : 0,
+          instructorName: c.instructorId?.name || c.createdBy?.name || 'DigiLearning Faculty',
+        };
+      })
+    );
+
+    res.json(enriched);
+  } catch (err) { next(err); }
+});
+
+// GET /api/courses/my-learning — returns all enrolled courses for the logged-in student
+router.get('/my-learning', protect, async (req, res, next) => {
+  try {
+    const enrollments = await Enrollment.find({ userId: req.user.id })
+      .populate({
+        path: 'courseId',
+        populate: { path: 'createdBy instructorId', select: 'name email role' }
+      })
+      .populate('lastAccessedLesson')
+      .sort('-updatedAt')
+      .lean();
+
+    const validEnrollments = enrollments.filter(e => e.courseId);
+
+    const myCourses = await Promise.all(
+      validEnrollments.map(async (e) => {
+        const course = e.courseId;
+        const modules = await Module.find({ courseId: course._id }).sort('order').lean();
+        const moduleIds = modules.map(m => m._id);
+        const allLessons = await Lesson.find({ moduleId: { $in: moduleIds } }).sort('order').lean();
+        
+        const totalLessons = allLessons.length;
+        const completedCount = e.completedLessons?.length || 0;
+        const progressPct = totalLessons > 0 ? Math.min(100, Math.round((completedCount / totalLessons) * 100)) : 0;
+
+        // Determine next lesson to continue: either lastAccessedLesson or first incomplete lesson
+        let nextLesson = null;
+        if (e.lastAccessedLesson) {
+          nextLesson = allLessons.find(l => l._id.toString() === e.lastAccessedLesson._id?.toString() || l._id.toString() === e.lastAccessedLesson.toString());
+        }
+        if (!nextLesson) {
+          const completedSet = new Set((e.completedLessons || []).map(id => id.toString()));
+          nextLesson = allLessons.find(l => !completedSet.has(l._id.toString())) || allLessons[0] || null;
+        }
+
+        // Find module for nextLesson
+        let nextLessonModule = null;
+        if (nextLesson) {
+          nextLessonModule = modules.find(m => m._id.toString() === nextLesson.moduleId.toString());
+        }
+
+        return {
+          enrollmentId: e._id,
+          status: e.status,
+          progress: progressPct,
+          enrolledAt: e.enrolledAt,
+          completedAt: e.completedAt,
+          completedLessons: e.completedLessons || [],
+          course: {
+            ...course,
+            instructorName: course.instructorId?.name || course.createdBy?.name || 'DigiLearning Faculty',
+          },
+          totalModules: modules.length,
+          totalLessons,
+          completedLessonsCount: completedCount,
+          nextLesson: nextLesson ? {
+            _id: nextLesson._id,
+            title: nextLesson.title,
+            type: nextLesson.type || course.courseType || 'video',
+            duration: nextLesson.duration || 0,
+            moduleTitle: nextLessonModule?.title || 'Course Content',
+          } : null,
+        };
+      })
+    );
+
+    res.json(myCourses);
   } catch (err) { next(err); }
 });
 
 // GET /api/courses/enrolled-list — returns all course IDs the student is enrolled in
 router.get('/enrolled-list', protect, async (req, res, next) => {
   try {
-    const enrollments = await Enrollment.find({ userId: req.user.id }).select('courseId status').lean();
+    const enrollments = await Enrollment.find({ userId: req.user.id }).select('courseId progress status').lean();
     res.json(enrollments);
   } catch (err) { next(err); }
 });
@@ -36,7 +157,7 @@ router.get('/enrolled', protect, async (req, res, next) => {
 
     if (!activeId) {
       // Find the first enrollment if no activeCourseId is set
-      const firstEnroll = await Enrollment.findOne({ userId: req.user.id }).lean();
+      const firstEnroll = await Enrollment.findOne({ userId: req.user.id }).sort('-updatedAt').lean();
       if (!firstEnroll) return res.json(null);
       activeId = firstEnroll.courseId;
       
@@ -45,7 +166,9 @@ router.get('/enrolled', protect, async (req, res, next) => {
       await dbUser.save();
     }
 
-    const course = await Course.findById(activeId).lean();
+    const course = await Course.findById(activeId)
+      .populate('createdBy instructorId', 'name email role')
+      .lean();
     if (!course) return res.json(null);
 
     const modules = await Module.find({ courseId: course._id }).sort('order').lean();
@@ -58,11 +181,17 @@ router.get('/enrolled', protect, async (req, res, next) => {
     );
 
     const enrollment = await Enrollment.findOne({ userId: req.user.id, courseId: course._id }).lean();
+    const allLessonCount = modulesWithLessons.reduce((acc, m) => acc + (m.lessons?.length || 0), 0);
+    const completedCount = enrollment?.completedLessons?.length || 0;
+    const progressPct = allLessonCount > 0 ? Math.min(100, Math.round((completedCount / allLessonCount) * 100)) : 0;
 
     res.json({
       ...course,
       modules: modulesWithLessons,
       completedLessons: enrollment?.completedLessons || [],
+      progress: progressPct,
+      lastAccessedLesson: enrollment?.lastAccessedLesson || null,
+      instructorName: course.instructorId?.name || course.createdBy?.name || 'DigiLearning Faculty',
     });
   } catch (err) { next(err); }
 });
@@ -129,11 +258,19 @@ router.post('/:id/enroll', protect, async (req, res, next) => {
     }
 
     // Create enrollment
-    await Enrollment.create({
+    const newEnrollment = await Enrollment.create({
       userId: user._id,
+      studentId: user._id,
       courseId,
-      completedLessons: []
+      progress: 0,
+      completedLessons: [],
+      status: 'active',
+      enrolledAt: new Date(),
     });
+
+    // Increment course enrollmentCount
+    courseExists.enrollmentCount = (courseExists.enrollmentCount || 0) + 1;
+    await courseExists.save();
 
     // Set as active course
     user.activeCourseId = courseId;
@@ -149,7 +286,7 @@ router.post('/:id/enroll', protect, async (req, res, next) => {
       metadata: { creditsCost: cost, remainingBalance: user.creditsBalance }
     }).catch(() => {});
 
-    // Automatically send notification to student and Google Apps Script
+    // Automated notification
     sendAutomatedNotification({
       userId: user._id,
       userName: user.name,
@@ -164,6 +301,7 @@ router.post('/:id/enroll', protect, async (req, res, next) => {
       success: true,
       message: cost > 0 ? `Successfully unlocked "${courseExists.title}" for ${cost} DigiCredits!` : `Enrolled in "${courseExists.title}"!`,
       courseId,
+      enrollment: newEnrollment,
       creditsBalance: user.creditsBalance
     });
   } catch (err) { next(err); }
@@ -184,7 +322,9 @@ router.post('/:id/activate', protect, async (req, res, next) => {
 // GET /api/courses/:id — full course details
 router.get('/:id', protect, async (req, res, next) => {
   try {
-    const course = await Course.findById(req.params.id).lean();
+    const course = await Course.findById(req.params.id)
+      .populate('createdBy instructorId', 'name email role')
+      .lean();
     if (!course) return res.status(404).json({ message: 'Course not found.' });
 
     const modules = await Module.find({ courseId: course._id }).sort('order').lean();
@@ -197,10 +337,18 @@ router.get('/:id', protect, async (req, res, next) => {
     );
 
     const enrollment = await Enrollment.findOne({ userId: req.user.id, courseId: course._id }).lean();
+    const totalLessons = modulesWithLessons.reduce((acc, m) => acc + (m.lessons?.length || 0), 0);
+    const completedCount = enrollment?.completedLessons?.length || 0;
+    const progressPct = totalLessons > 0 ? Math.min(100, Math.round((completedCount / totalLessons) * 100)) : 0;
+
     res.json({
       ...course,
       modules: modulesWithLessons,
       completedLessons: enrollment?.completedLessons || [],
+      isEnrolled: !!enrollment,
+      progress: progressPct,
+      lastAccessedLesson: enrollment?.lastAccessedLesson || null,
+      instructorName: course.instructorId?.name || course.createdBy?.name || 'DigiLearning Faculty',
     });
   } catch (err) { next(err); }
 });

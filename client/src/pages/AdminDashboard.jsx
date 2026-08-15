@@ -1,19 +1,27 @@
 import { useEffect, useState } from 'react'
 import api from '../lib/api'
 import {
-  Users, BookOpen, Bookmark, Shield, Award, Calendar, Trophy,
+  Users, BookOpen, Shield, Award, Calendar, Trophy,
   ChevronRight, Activity, Search, RefreshCw, Trash2, UserCheck,
   ShieldCheck, AlertCircle, CheckCircle2, Clock, Filter, Layers,
-  CreditCard, Sparkles, Plus, Edit2, Coins, ArrowUpRight, ArrowDownRight,
-  ExternalLink, X
+  Sparkles, Plus, Edit2, Coins, ArrowUpRight, ArrowDownRight,
+  ExternalLink, X, Send, Eye, Check, Video, FileText
 } from 'lucide-react'
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState('overview') // 'overview' | 'users' | 'courses' | 'logs'
+  const [activeTab, setActiveTab] = useState('overview') // 'overview' | 'reviews' | 'courses' | 'users' | 'logs'
   const [stats, setStats] = useState(null)
   const [loadingStats, setLoadingStats] = useState(true)
 
-  // Users tab state
+  // Pending Reviews Tab State
+  const [pendingCourses, setPendingCourses] = useState([])
+  const [loadingPending, setLoadingPending] = useState(false)
+  const [previewCourse, setPreviewCourse] = useState(null)
+  const [loadingPreview, setLoadingPreview] = useState(false)
+  const [rejectModalCourse, setRejectModalCourse] = useState(null)
+  const [rejectionReason, setRejectionReason] = useState('Please ensure all video/document links are accessible and syllabus is complete.')
+
+  // Users Tab State
   const [users, setUsers] = useState([])
   const [loadingUsers, setLoadingUsers] = useState(false)
   const [userRoleFilter, setUserRoleFilter] = useState('all')
@@ -22,18 +30,18 @@ export default function AdminDashboard() {
   const [creditAmount, setCreditAmount] = useState(50)
   const [creditReason, setCreditReason] = useState('Community Contribution Award')
 
-  // Courses tab state
+  // Courses Tab State
   const [courses, setCourses] = useState([])
   const [loadingCourses, setLoadingCourses] = useState(false)
 
-  // Logs tab state
+  // Logs Tab State
   const [logs, setLogs] = useState([])
   const [loadingLogs, setLoadingLogs] = useState(false)
   const [logActionFilter, setLogActionFilter] = useState('all')
   const [logPage, setLogPage] = useState(1)
   const [logTotalPages, setLogTotalPages] = useState(1)
 
-  // Toast message
+  // Toast
   const [toast, setToast] = useState({ msg: '', isErr: false })
 
   const showToast = (msg, isErr = false) => {
@@ -43,9 +51,11 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchStats()
+    fetchPendingCourses()
   }, [])
 
   useEffect(() => {
+    if (activeTab === 'reviews') fetchPendingCourses()
     if (activeTab === 'users') fetchUsers()
     if (activeTab === 'courses') fetchCourses()
     if (activeTab === 'logs') fetchLogs(1)
@@ -60,6 +70,18 @@ export default function AdminDashboard() {
       showToast(err.response?.data?.message || 'Failed to load system metrics.', true)
     } finally {
       setLoadingStats(false)
+    }
+  }
+
+  const fetchPendingCourses = async () => {
+    setLoadingPending(true)
+    try {
+      const res = await api.get('/admin/courses/pending')
+      setPendingCourses(res.data || [])
+    } catch (err) {
+      showToast('Failed to load pending course reviews.', true)
+    } finally {
+      setLoadingPending(false)
     }
   }
 
@@ -100,20 +122,71 @@ export default function AdminDashboard() {
       setLogPage(res.data?.page || 1)
       setLogTotalPages(res.data?.pages || 1)
     } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to load activity logs.', true)
+      showToast(err.response?.data?.message || 'Failed to load audit logs.', true)
     } finally {
       setLoadingLogs(false)
     }
   }
 
-  const handleRoleChange = async (userId, newRole, userName) => {
+  // Course Review Actions
+  const handleOpenPreview = async (courseId) => {
+    setLoadingPreview(true)
     try {
-      await api.put(`/admin/users/${userId}/role`, { role: newRole })
-      showToast(`Updated ${userName}'s role to [${newRole.toUpperCase()}].`)
+      const res = await api.get(`/admin/courses/${courseId}/preview`)
+      setPreviewCourse(res.data)
+    } catch (err) {
+      showToast('Failed to load course preview.', true)
+    } finally {
+      setLoadingPreview(false)
+    }
+  }
+
+  const handleApproveCourse = async (courseId, title) => {
+    try {
+      await api.put(`/admin/courses/${courseId}/approve`)
+      showToast(`🎉 "${title}" has been APPROVED and published to Explore Tracks!`)
+      fetchPendingCourses()
+      fetchStats()
+      if (previewCourse?._id === courseId) setPreviewCourse(null)
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to approve course.', true)
+    }
+  }
+
+  const handleRejectCourse = async () => {
+    if (!rejectModalCourse) return
+    try {
+      await api.put(`/admin/courses/${rejectModalCourse._id}/reject`, { rejectionReason })
+      showToast(`Course "${rejectModalCourse.title}" rejected with feedback.`)
+      setRejectModalCourse(null)
+      fetchPendingCourses()
+      fetchStats()
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to reject course.', true)
+    }
+  }
+
+  const handleToggleCourseStatus = async (courseId, currentStatus) => {
+    const nextStatus = currentStatus === 'published' ? 'unpublished' : 'published'
+    try {
+      await api.put(`/admin/courses/${courseId}/status`, { status: nextStatus })
+      showToast(`Course status changed to "${nextStatus}".`)
+      fetchCourses()
+      fetchStats()
+    } catch (err) {
+      showToast('Failed to toggle status.', true)
+    }
+  }
+
+  // User Actions
+  const handleChangeRole = async (userId, newRole) => {
+    try {
+      const res = await api.put(`/admin/users/${userId}/role`, { role: newRole })
+      showToast(res.data?.message || 'Role updated successfully.')
       fetchUsers()
       fetchStats()
     } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to change user role.', true)
+      showToast(err.response?.data?.message || 'Failed to update user role.', true)
     }
   }
 
@@ -121,11 +194,11 @@ export default function AdminDashboard() {
     e.preventDefault()
     if (!creditModalUser) return
     try {
-      await api.put(`/admin/users/${creditModalUser._id}/credits`, {
+      const res = await api.put(`/admin/users/${creditModalUser._id}/credits`, {
         amount: creditAmount,
         reason: creditReason
       })
-      showToast(`Successfully granted ${creditAmount} credits to ${creditModalUser.name}!`)
+      showToast(res.data?.message || 'Credits adjusted successfully.')
       setCreditModalUser(null)
       fetchUsers()
       fetchStats()
@@ -137,8 +210,8 @@ export default function AdminDashboard() {
   const handleDeleteUser = async (userId, userName) => {
     if (!window.confirm(`Are you sure you want to permanently delete user "${userName}"?`)) return
     try {
-      await api.delete(`/admin/users/${userId}`)
-      showToast(`Deleted user "${userName}".`)
+      const res = await api.delete(`/admin/users/${userId}`)
+      showToast(res.data?.message || 'User deleted.')
       fetchUsers()
       fetchStats()
     } catch (err) {
@@ -146,494 +219,579 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleDeleteCourse = async (courseId, title) => {
-    if (!window.confirm(`Are you sure you want to permanently delete course "${title}"?`)) return
-    try {
-      await api.delete(`/admin/courses/${courseId}`)
-      showToast(`Deleted course "${title}".`)
-      fetchCourses()
-      fetchStats()
-    } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to delete course.', true)
-    }
-  }
-
-  const getActionBadge = (action) => {
-    if (action.includes('COURSE') || action.includes('MODULE') || action.includes('LESSON')) {
-      return 'bg-[#3895D2]/10 text-[#3895D2] border-[#3895D2]/30'
-    }
-    if (action.includes('REGISTER') || action.includes('LOGIN')) {
-      return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
-    }
-    if (action.includes('ROLE')) {
-      return 'bg-purple-500/10 text-purple-600 border-purple-500/30'
-    }
-    if (action.includes('CREDIT')) {
-      return 'bg-amber-500/10 text-amber-600 border-amber-500/30'
-    }
-    if (action.includes('DELETE')) {
-      return 'bg-rose-500/10 text-rose-600 border-rose-500/30'
-    }
-    return 'bg-slate-100 text-slate-700 border-slate-200'
-  }
-
-  const cardItems = stats ? [
-    { label: 'Total Registered Users', value: stats.totalUsersCount || 0, icon: Users, color: '#3895D2', bg: 'bg-blue-50' },
-    { label: 'Students', value: stats.studentsCount || 0, icon: UserCheck, color: '#4FB286', bg: 'bg-emerald-50' },
-    { label: 'Instructors', value: stats.instructorsCount || 0, icon: BookOpen, color: '#E8A33D', bg: 'bg-amber-50' },
-    { label: 'Administrators', value: stats.adminsCount || 0, icon: ShieldCheck, color: '#8B5CF6', bg: 'bg-purple-50' },
-    { label: 'Published Courses', value: stats.coursesCount || 0, icon: Layers, color: '#3895D2', bg: 'bg-blue-50' },
-    { label: 'Total Enrollments', value: stats.enrollmentsCount || 0, icon: Bookmark, color: '#EC4899', bg: 'bg-pink-50' },
-    { label: 'Active Mentors', value: stats.mentorsCount || 0, icon: Shield, color: '#8B5CF6', bg: 'bg-purple-50' },
-    { label: 'Live Events', value: stats.registrationsCount || 0, icon: Calendar, color: '#3895D2', bg: 'bg-blue-50' },
-    { label: '24h Activity Events', value: stats.recentActivityCount || 0, icon: Activity, color: '#4FB286', bg: 'bg-emerald-50' },
-  ] : []
-
   return (
-    <div className="page-enter max-w-7xl mx-auto space-y-6 pb-16">
-      {/* Toast Alert */}
+    <div className="space-y-6 page-enter">
+      
+      {/* Toast Notification */}
       {toast.msg && (
-        <div className={`fixed bottom-6 right-6 z-50 px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 animate-fade-in text-sm font-medium border ${
-          toast.isErr ? 'bg-[#0F172A] text-rose-400 border-rose-500/30' : 'bg-[#0F172A] text-emerald-400 border-emerald-500/30'
+        <div className={`p-4 rounded-2xl border text-xs sm:text-sm font-medium flex items-center justify-between shadow-2xs ${
+          toast.isErr
+            ? 'bg-rose-50 border-rose-200 text-rose-700'
+            : 'bg-emerald-50 border-emerald-200 text-emerald-800'
         }`}>
-          {toast.isErr ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
-          <span>{toast.msg}</span>
+          <div className="flex items-center gap-2.5">
+            {toast.isErr ? <AlertCircle size={16} /> : <CheckCircle2 size={16} className="text-emerald-600" />}
+            <span>{toast.msg}</span>
+          </div>
+          <button onClick={() => setToast({ msg: '', isErr: false })} className="text-xs opacity-70 hover:opacity-100">Dismiss</button>
         </div>
       )}
 
       {/* Header Banner */}
-      <div className="bg-[#0F172A] border border-slate-800 rounded-2xl p-6 md:p-8 text-white relative overflow-hidden shadow-xl">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-mono tracking-widest text-[#EA4532] font-bold uppercase mb-2">
-              <ShieldCheck size={14} />
-              <span>PLATFORM GOVERNANCE & CONTROL</span>
-            </div>
-            <h1 className="text-2xl md:text-3xl font-black font-heading tracking-tight text-white">
-              Administrator Command Center
-            </h1>
-            <p className="text-slate-400 text-sm mt-1 max-w-2xl font-medium">
-              Inspect real-time MongoDB metrics, manage user role permissions, grant credits, and audit platform security logs.
-            </p>
+      <div className="bg-white border border-slate-200 p-6 rounded-3xl shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-mono text-xs text-emerald-600 uppercase tracking-widest font-bold text-[10px]">
+              ADMINISTRATION COMMAND & MODERATION
+            </span>
+          </div>
+          <h2 className="text-xl sm:text-2xl font-heading font-black text-slate-900 tracking-tight">
+            Platform Operations & Course Review Center
+          </h2>
+          <p className="text-slate-500 text-xs sm:text-sm mt-0.5 font-medium">
+            Moderate submitted curriculum, govern accounts, monitor real-time credit transactions, and audit security events.
+          </p>
+        </div>
+
+        <button
+          onClick={() => { fetchStats(); fetchPendingCourses(); }}
+          className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center gap-2 flex-shrink-0"
+        >
+          <RefreshCw size={14} className={loadingStats ? 'animate-spin text-[#3895D2]' : ''} />
+          <span>Refresh Data</span>
+        </button>
+      </div>
+
+      {/* Top 5 Metrics Overview */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        {[
+          { label: 'Total Students', value: stats?.studentsCount ?? 0, color: '#3895D2', bg: 'border-l-[#3895D2]' },
+          { label: 'Total Instructors', value: stats?.instructorsCount ?? 0, color: '#0284C7', bg: 'border-l-sky-500' },
+          { label: 'Published Courses', value: stats?.publishedCoursesCount ?? 0, color: '#10B981', bg: 'border-l-emerald-500' },
+          { label: 'Pending Reviews', value: stats?.pendingReviewsCount ?? pendingCourses.length, color: '#F59E0B', bg: 'border-l-amber-500' },
+          { label: 'Total Users', value: stats?.totalUsersCount ?? 0, color: '#6366F1', bg: 'border-l-indigo-500' },
+        ].map(({ label, value, color, bg }) => (
+          <div key={label} className={`bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs border-l-4 ${bg}`}>
+            <p className="text-slate-500 font-mono uppercase tracking-widest text-[10px] font-bold mb-1">{label}</p>
+            <span className="font-heading text-2xl font-black" style={{ color }}>{value}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Tab Selector */}
+      <div className="bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 flex flex-wrap gap-1.5">
+        {[
+          { id: 'overview', label: 'Ecosystem Overview', icon: Activity },
+          { id: 'reviews', label: 'Course Review Queue', icon: ShieldCheck, badge: pendingCourses.length },
+          { id: 'courses', label: 'Course Catalog', icon: BookOpen, count: stats?.coursesCount || courses.length },
+          { id: 'users', label: 'User Management', icon: Users, count: stats?.totalUsersCount || users.length },
+          { id: 'logs', label: 'Audit Stream', icon: Shield },
+        ].map(({ id, label, icon: Icon, count, badge }) => (
+          <button
+            key={id}
+            onClick={() => setActiveTab(id)}
+            className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 ${
+              activeTab === id
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+            }`}
+          >
+            <Icon size={15} />
+            <span>{label}</span>
+            {badge !== undefined && badge > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500 text-white animate-pulse">
+                {badge}
+              </span>
+            )}
+            {count !== undefined && (
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                activeTab === id ? 'bg-slate-100 text-slate-800' : 'bg-slate-200 text-slate-600'
+              }`}>
+                {count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* ══════════════════════════════════════════════
+          TAB: COURSE REVIEW & MODERATION QUEUE
+      ══════════════════════════════════════════════ */}
+      {activeTab === 'reviews' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-heading font-bold text-slate-900 text-base flex items-center gap-2">
+              <ShieldCheck size={18} className="text-amber-500" />
+              <span>Pending Course Submissions for Moderation</span>
+            </h3>
+            <span className="text-xs text-slate-500 font-medium">
+              {pendingCourses.length} course(s) awaiting approval
+            </span>
           </div>
 
-          <button
-            onClick={() => {
-              fetchStats()
-              if (activeTab === 'users') fetchUsers()
-              if (activeTab === 'courses') fetchCourses()
-              if (activeTab === 'logs') fetchLogs(1)
-            }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold font-heading transition-all shadow-md flex-shrink-0"
-          >
-            <RefreshCw size={14} />
-            <span>Sync Live Data</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Modern Segmented Navigation Tabs */}
-      <div className="bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 inline-flex items-center gap-2 overflow-x-auto max-w-full">
-        {[
-          { id: 'overview', label: 'System Overview', count: stats?.totalUsersCount || 0, icon: Activity },
-          { id: 'users', label: 'User Management', count: users.length || stats?.totalUsersCount || 0, icon: Users },
-          { id: 'courses', label: 'Course Directory', count: courses.length || stats?.coursesCount || 0, icon: Layers },
-          { id: 'logs', label: 'Live Audit Logs', count: logs.length || stats?.recentActivityCount || 0, icon: ShieldCheck }
-        ].map((tab) => {
-          const Icon = tab.icon
-          const isActive = activeTab === tab.id
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-5 py-2.5 rounded-xl text-xs md:text-sm font-heading transition-all flex items-center gap-2.5 whitespace-nowrap ${
-                isActive
-                  ? 'bg-[#0F172A] text-white shadow-sm font-black'
-                  : 'bg-transparent text-slate-600 hover:text-slate-900 hover:bg-white/60 font-bold'
-              }`}
-            >
-              <Icon size={16} className={isActive ? 'text-[#EA4532]' : 'text-slate-400'} />
-              <span>{tab.label}</span>
-              <span className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold ${
-                isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-              }`}>
-                {tab.count}
-              </span>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* TAB 1: SYSTEM OVERVIEW */}
-      {activeTab === 'overview' && (
-        <div className="space-y-6 animate-fade-in">
-          {loadingStats ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {[1, 2, 3, 4, 5, 6].map(i => (
-                <div key={i} className="h-28 rounded-2xl bg-white border border-slate-200 animate-pulse" />
-              ))}
+          {loadingPending ? (
+            <div className="space-y-3">
+              {[1, 2].map(i => <div key={i} className="h-28 bg-white border border-slate-200 rounded-2xl shimmer" />)}
+            </div>
+          ) : pendingCourses.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center shadow-xs">
+              <CheckCircle2 size={36} className="text-emerald-500 mx-auto mb-3" />
+              <h4 className="font-heading font-bold text-slate-800 text-base">Review Queue is Clear!</h4>
+              <p className="text-slate-500 text-xs mt-1 max-w-md mx-auto">
+                No instructor course submissions are currently awaiting review. New submissions will appear here automatically.
+              </p>
             </div>
           ) : (
-            <>
-              {/* Summary Stats Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {cardItems.map((c) => {
-                  const Icon = c.icon
-                  return (
-                    <div
-                      key={c.label}
-                      className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs hover:shadow-xs transition-all flex items-center justify-between"
-                    >
-                      <div>
-                        <p className="text-slate-500 font-mono uppercase tracking-wider mb-1 font-bold text-[10px]">
-                          {c.label}
-                        </p>
-                        <p className="font-heading text-2xl font-black text-slate-900">{c.value}</p>
+            <div className="grid grid-cols-1 gap-4">
+              {pendingCourses.map(course => (
+                <div
+                  key={course._id}
+                  className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs hover:shadow-xs transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
+                >
+                  <div className="flex items-start gap-4 min-w-0 flex-1">
+                    <div className="w-14 h-14 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 flex-shrink-0">
+                      {course.courseType === 'pdf' ? <FileText size={24} /> : <Video size={24} />}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">
+                          Pending Review
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-sky-50 text-[#3895D2] border border-sky-200">
+                          {course.courseType === 'pdf' ? '📄 PDF Course' : '🎥 Video Course'}
+                        </span>
+                        <span className="text-slate-400 text-xs">·</span>
+                        <span className="text-slate-500 text-xs font-semibold">{course.category}</span>
                       </div>
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${c.bg}`}>
-                        <Icon size={22} style={{ color: c.color }} />
+
+                      <h4 className="font-heading font-bold text-slate-900 text-base truncate">
+                        {course.title}
+                      </h4>
+                      <p className="text-slate-500 text-xs font-medium line-clamp-1 mt-0.5">
+                        {course.description}
+                      </p>
+
+                      <div className="flex items-center gap-4 text-slate-500 text-xs font-mono mt-2 flex-wrap">
+                        <span>Instructor: <strong className="text-slate-800">{course.instructorName}</strong></span>
+                        <span>{course.moduleCount || 0} modules</span>
+                        <span>{course.lessonCount || 0} lessons</span>
                       </div>
                     </div>
-                  )
-                })}
-              </div>
-
-              {/* Course Popularity & Credits Breakdown */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Course Popularity */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                    <h3 className="text-sm font-black text-slate-900 font-heading tracking-wide flex items-center gap-2">
-                      <Trophy size={16} className="text-amber-500" />
-                      <span>TOP ENROLLED COURSES</span>
-                    </h3>
-                    <span className="text-xs font-mono font-bold text-[#3895D2]">Live Data</span>
                   </div>
 
-                  {stats?.coursePopularity?.length === 0 ? (
-                    <p className="text-xs text-slate-400 italic py-4">No course enrollments recorded yet.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {stats?.coursePopularity?.map((cp, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-150">
-                          <div className="flex items-center gap-3">
-                            <span className="w-6 h-6 rounded-lg bg-blue-50 text-[#3895D2] flex items-center justify-center text-xs font-mono font-bold">
-                              #{idx + 1}
-                            </span>
-                            <div>
-                              <p className="text-xs font-bold text-slate-900">{cp.title}</p>
-                              <p className="text-[10px] text-slate-500 font-medium">{cp.category}</p>
-                            </div>
+                  <div className="flex items-center gap-2 flex-shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100">
+                    <button
+                      onClick={() => handleOpenPreview(course._id)}
+                      className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                    >
+                      <Eye size={13} />
+                      <span>Preview Course</span>
+                    </button>
+                    <button
+                      onClick={() => handleApproveCourse(course._id, course.title)}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                    >
+                      <Check size={14} />
+                      <span>Approve & Publish</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setRejectModalCourse(course)
+                        setRejectionReason('Please ensure all video/document links are accessible and syllabus is complete.')
+                      }}
+                      className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition-all border border-rose-200 flex items-center gap-1.5"
+                    >
+                      <X size={14} />
+                      <span>Reject</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════
+          TAB: COURSE CATALOG MANAGEMENT
+      ══════════════════════════════════════════════ */}
+      {activeTab === 'courses' && (
+        <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-xs">
+          <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+            <h3 className="font-heading font-bold text-slate-900 text-base">Course Governance Directory</h3>
+            <span className="text-xs text-slate-500 font-mono">{courses.length} registered tracks</span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-mono uppercase tracking-wider text-[10px]">
+                <tr>
+                  <th className="p-4">Course Title & Category</th>
+                  <th className="p-4">Type</th>
+                  <th className="p-4">Instructor</th>
+                  <th className="p-4">Content</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {courses.map((course) => (
+                  <tr key={course._id} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="p-4">
+                      <p className="font-heading font-bold text-slate-900 text-xs sm:text-sm">{course.title}</p>
+                      <span className="text-slate-400 text-[11px]">{course.category} · {course.difficulty}</span>
+                    </td>
+                    <td className="p-4">
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                        course.courseType === 'pdf' ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-[#3895D2]'
+                      }`}>
+                        {course.courseType === 'pdf' ? '📄 PDF' : '🎥 Video'}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <p className="font-bold text-slate-800">{course.instructorName}</p>
+                      <p className="text-slate-400 text-[11px]">{course.instructorEmail}</p>
+                    </td>
+                    <td className="p-4 font-mono text-slate-600">
+                      {course.moduleCount || 0} modules · {course.lessonCount || 0} lessons
+                    </td>
+                    <td className="p-4">
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        course.status === 'published'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : course.status === 'submitted'
+                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                          : course.status === 'rejected'
+                          ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                          : 'bg-slate-100 text-slate-600 border border-slate-200'
+                      }`}>
+                        {course.status}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right space-x-2">
+                      <button
+                        onClick={() => handleToggleCourseStatus(course._id, course.status)}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                          course.status === 'published'
+                            ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200'
+                            : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
+                        }`}
+                      >
+                        {course.status === 'published' ? 'Unpublish' : 'Publish'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════
+          TAB: USER MANAGEMENT
+      ══════════════════════════════════════════════ */}
+      {activeTab === 'users' && (
+        <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-xs space-y-4 p-5">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <input
+                type="text"
+                placeholder="Search by name or email..."
+                value={userSearch}
+                onChange={e => setUserSearch(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && fetchUsers()}
+                className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white w-full sm:w-64"
+              />
+              <button
+                onClick={fetchUsers}
+                className="px-3.5 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold"
+              >
+                Search
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+              {['all', 'student', 'instructor', 'admin', 'mentor'].map(r => (
+                <button
+                  key={r}
+                  onClick={() => setUserRoleFilter(r)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold capitalize transition-all ${
+                    userRoleFilter === r ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-mono uppercase tracking-wider text-[10px]">
+                <tr>
+                  <th className="p-3">User</th>
+                  <th className="p-3">Role</th>
+                  <th className="p-3">Credits</th>
+                  <th className="p-3">Enrollments</th>
+                  <th className="p-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {users.map(u => (
+                  <tr key={u._id} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="p-3">
+                      <p className="font-heading font-bold text-slate-900">{u.name}</p>
+                      <p className="text-slate-400 text-[11px]">{u.email}</p>
+                    </td>
+                    <td className="p-3">
+                      <select
+                        value={u.role}
+                        onChange={e => handleChangeRole(u._id, e.target.value)}
+                        className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold capitalize outline-none"
+                      >
+                        {['student', 'instructor', 'mentor', 'admin'].map(r => (
+                          <option key={r} value={r}>{r}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="p-3 font-mono font-bold text-[#3895D2]">
+                      {u.creditsBalance || 0}
+                    </td>
+                    <td className="p-3 font-mono text-slate-600">
+                      {u.enrollmentCount || 0} courses
+                    </td>
+                    <td className="p-3 text-right space-x-2">
+                      <button
+                        onClick={() => setCreditModalUser(u)}
+                        className="px-2.5 py-1 rounded-lg bg-sky-50 text-[#3895D2] font-bold text-xs hover:bg-sky-100"
+                      >
+                        + Credits
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(u._id, u.name)}
+                        className="p-1 rounded-lg text-slate-400 hover:text-rose-600"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════
+          TAB: OVERVIEW & AUDIT LOGS
+      ══════════════════════════════════════════════ */}
+      {(activeTab === 'overview' || activeTab === 'logs') && (
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-4">
+          <h4 className="font-heading font-bold text-slate-900 text-base">Platform Activity & Audit Logs</h4>
+          <div className="divide-y divide-slate-100">
+            {(stats?.recentTransactions || []).map(tx => (
+              <div key={tx._id} className="py-3 flex items-center justify-between text-xs">
+                <div>
+                  <p className="font-bold text-slate-800">{tx.userName} ({tx.userEmail})</p>
+                  <p className="text-slate-500 text-[11px]">{tx.reason}</p>
+                </div>
+                <div className="text-right font-mono">
+                  <span className={`font-bold ${tx.type === 'EARN' ? 'text-emerald-600' : 'text-[#3895D2]'}`}>
+                    {tx.type === 'EARN' ? '+' : '-'}{tx.amount} credits
+                  </span>
+                  <p className="text-[10px] text-slate-400">{new Date(tx.createdAt).toLocaleString()}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════
+          COURSE PREVIEW MODAL
+      ══════════════════════════════════════════════ */}
+      {previewCourse && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 flex-shrink-0">
+              <div>
+                <span className="px-2.5 py-0.5 rounded-full bg-sky-50 text-[#3895D2] text-[10px] font-bold uppercase">
+                  {previewCourse.courseType === 'pdf' ? '📄 PDF Track' : '🎥 Video Track'}
+                </span>
+                <h4 className="font-heading font-black text-slate-900 text-lg mt-1">
+                  {previewCourse.title}
+                </h4>
+                <p className="text-slate-500 text-xs font-medium">By {previewCourse.instructorName} · {previewCourse.category} · {previewCourse.difficulty}</p>
+              </div>
+              <button onClick={() => setPreviewCourse(null)} className="text-slate-400 hover:text-slate-600">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto py-6 space-y-4">
+              <p className="text-slate-700 text-xs leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                {previewCourse.description}
+              </p>
+
+              <h5 className="font-heading font-bold text-slate-900 text-sm">Syllabus & Modules Inspector</h5>
+              <div className="space-y-3">
+                {(previewCourse.modules || []).map((m, mIdx) => (
+                  <div key={m._id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+                    <div className="px-4 py-2.5 bg-slate-50 font-heading font-bold text-xs text-slate-800 flex items-center gap-2">
+                      <span className="font-mono text-slate-400">#{mIdx + 1}</span>
+                      <span>{m.title}</span>
+                    </div>
+                    <div className="divide-y divide-slate-100 p-2">
+                      {(m.lessons || []).map((l, lIdx) => (
+                        <div key={l._id} className="py-2 px-3 flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2">
+                            {previewCourse.courseType === 'pdf' ? <FileText size={14} className="text-emerald-600" /> : <Video size={14} className="text-[#3895D2]" />}
+                            <span className="font-bold text-slate-800">{l.title}</span>
                           </div>
-                          <span className="px-2.5 py-1 rounded-md bg-white border border-slate-200 text-xs font-mono font-bold text-slate-700 shadow-2xs">
-                            {cp.count} learners
-                          </span>
+                          {l.contentUrl && (
+                            <a
+                              href={l.contentUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[#3895D2] font-bold text-xs flex items-center gap-1 hover:underline"
+                            >
+                              <span>Inspect Content</span>
+                              <ExternalLink size={12} />
+                            </a>
+                          )}
                         </div>
                       ))}
                     </div>
-                  )}
-                </div>
-
-                {/* DigiCredits Ledger Summary */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                    <h3 className="text-sm font-black text-slate-900 font-heading tracking-wide flex items-center gap-2">
-                      <CreditCard size={16} className="text-[#3895D2]" />
-                      <span>DIGICREDITS PLATFORM LEDGER</span>
-                    </h3>
-                    <span className="text-xs font-mono font-bold text-emerald-600">Active Pool</span>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-100">
-                      <p className="text-[10px] font-mono font-bold text-emerald-800 uppercase">TOTAL EARNED / BONUS</p>
-                      <p className="text-xl font-black text-emerald-600 font-heading mt-1">+{stats?.creditsEarnedSum || 0}</p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-rose-50/50 border border-rose-100">
-                      <p className="text-[10px] font-mono font-bold text-rose-800 uppercase">TOTAL SPENT</p>
-                      <p className="text-xl font-black text-rose-600 font-heading mt-1">-{stats?.creditsSpentSum || 0}</p>
-                    </div>
-                  </div>
-
-                  {/* Recent 5 Transactions */}
-                  <div className="space-y-2 pt-2">
-                    <p className="text-[10px] font-mono uppercase font-bold text-slate-500">LATEST REAL-TIME TRANSACTIONS</p>
-                    {stats?.recentTransactions?.length === 0 ? (
-                      <p className="text-xs text-slate-400 italic py-2">No transactions recorded yet.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {stats?.recentTransactions?.slice(0, 5).map((t) => (
-                          <div key={t._id} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 text-xs border border-slate-100">
-                            <div className="flex items-center gap-2">
-                              <span className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold ${
-                                t.type === 'SPEND' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
-                              }`}>
-                                {t.type === 'SPEND' ? '↓' : '↑'}
-                              </span>
-                              <div>
-                                <span className="font-bold text-slate-800">{t.userName}</span>
-                                <span className="text-slate-500 text-[11px] ml-1.5 truncate max-w-[180px] inline-block align-bottom">{t.reason}</span>
-                              </div>
-                            </div>
-                            <span className={`font-mono font-bold ${t.type === 'SPEND' ? 'text-rose-600' : 'text-emerald-600'}`}>
-                              {t.type === 'SPEND' ? '-' : '+'}{t.amount}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                ))}
               </div>
-            </>
-          )}
+            </div>
+
+            <div className="flex items-center justify-between pt-4 border-t border-slate-100 flex-shrink-0">
+              <button
+                onClick={() => setPreviewCourse(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600"
+              >
+                Close Preview
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const c = previewCourse
+                    setPreviewCourse(null)
+                    setRejectModalCourse(c)
+                  }}
+                  className="px-4 py-2 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold hover:bg-rose-100"
+                >
+                  Reject with Feedback
+                </button>
+                <button
+                  onClick={() => handleApproveCourse(previewCourse._id, previewCourse.title)}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-xs"
+                >
+                  Approve & Publish
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* TAB 2: USER MANAGEMENT */}
-      {activeTab === 'users' && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs space-y-6 animate-fade-in">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-            <div>
-              <h3 className="font-heading font-black text-slate-900 text-lg">Platform User Directory ({users.length})</h3>
-              <p className="text-xs text-slate-500 font-medium">Manage permissions, promote instructor/mentor roles, and adjust credit balances.</p>
-            </div>
+      {/* ══════════════════════════════════════════════
+          REJECT REASON MODAL
+      ══════════════════════════════════════════════ */}
+      {rejectModalCourse && (
+        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 w-full max-w-md shadow-2xl">
+            <h4 className="font-heading font-bold text-slate-900 text-base mb-2">
+              Reject Course Submission
+            </h4>
+            <p className="text-slate-500 text-xs mb-4">
+              Provide constructive feedback to the instructor explaining required revisions.
+            </p>
 
-            <div className="flex items-center gap-2.5 flex-wrap">
-              {/* Role filter */}
-              <select
-                value={userRoleFilter}
-                onChange={(e) => setUserRoleFilter(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:border-[#3895D2]"
+            <textarea
+              rows={4}
+              required
+              value={rejectionReason}
+              onChange={e => setRejectionReason(e.target.value)}
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:bg-white resize-none"
+            />
+
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setRejectModalCourse(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600"
               >
-                <option value="all">All Roles</option>
-                <option value="student">Students</option>
-                <option value="instructor">Instructors</option>
-                <option value="mentor">Mentors</option>
-                <option value="admin">Administrators</option>
-              </select>
+                Cancel
+              </button>
+              <button
+                onClick={handleRejectCourse}
+                className="px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 shadow-xs"
+              >
+                Send Rejection Feedback
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-              {/* Search input */}
-              <div className="relative w-48 sm:w-60">
-                <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+      {/* ══════════════════════════════════════════════
+          CREDITS ADJUSTMENT MODAL
+      ══════════════════════════════════════════════ */}
+      {creditModalUser && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 w-full max-w-md shadow-2xl">
+            <h4 className="font-heading font-bold text-slate-900 text-base mb-1">
+              Adjust DigiCredits: {creditModalUser.name}
+            </h4>
+            <p className="text-slate-500 text-xs mb-4">Current Balance: {creditModalUser.creditsBalance || 0} credits</p>
+
+            <form onSubmit={handleAdjustCredits} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Adjustment Amount (+ or -)</label>
                 <input
-                  type="text"
-                  placeholder="Search user name/email..."
-                  value={userSearch}
-                  onChange={(e) => setUserSearch(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && fetchUsers()}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs font-medium focus:outline-none focus:border-[#3895D2]"
+                  type="number"
+                  required
+                  value={creditAmount}
+                  onChange={e => setCreditAmount(Number(e.target.value))}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold"
                 />
               </div>
-            </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Reason / Note</label>
+                <input
+                  type="text"
+                  required
+                  value={creditReason}
+                  onChange={e => setCreditReason(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setCreditModalUser(null)}
+                  className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-[#3895D2] text-white rounded-xl text-xs font-bold"
+                >
+                  Apply Credits
+                </button>
+              </div>
+            </form>
           </div>
-
-          {loadingUsers ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map(i => <div key={i} className="h-14 bg-slate-100 rounded-xl animate-pulse" />)}
-            </div>
-          ) : users.length === 0 ? (
-            <p className="text-xs text-slate-400 italic py-8 text-center">No users found matching your filters.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-500 uppercase font-mono text-[10px]">
-                    <th className="pb-3 pl-2">User Details</th>
-                    <th className="pb-3">Role</th>
-                    <th className="pb-3">Credits</th>
-                    <th className="pb-3">Enrollments</th>
-                    <th className="pb-3">Joined Date</th>
-                    <th className="pb-3 text-right pr-2">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {users.map((u) => (
-                    <tr key={u._id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3.5 pl-2">
-                        <p className="font-bold text-slate-900 text-xs">{u.name}</p>
-                        <p className="text-[11px] text-slate-500 font-mono">{u.email}</p>
-                      </td>
-                      <td className="py-3.5">
-                        <select
-                          value={u.role}
-                          onChange={(e) => handleRoleChange(u._id, e.target.value, u.name)}
-                          className="bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-800"
-                        >
-                          <option value="student">Student</option>
-                          <option value="instructor">Instructor</option>
-                          <option value="mentor">Mentor</option>
-                          <option value="admin">Admin</option>
-                        </select>
-                      </td>
-                      <td className="py-3.5">
-                        <span className="font-mono font-bold text-[#3895D2]">{u.creditsBalance || 0}</span>
-                      </td>
-                      <td className="py-3.5">
-                        <span className="font-mono font-medium text-slate-700">{u.enrollmentCount || 0} courses</span>
-                      </td>
-                      <td className="py-3.5 text-slate-500 font-mono text-[11px]">
-                        {new Date(u.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="py-3.5 text-right pr-2 space-x-2">
-                        <button
-                          onClick={() => setCreditModalUser(u)}
-                          className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 rounded-lg font-bold text-[11px]"
-                          title="Grant Credits"
-                        >
-                          + Credits
-                        </button>
-                        <button
-                          onClick={() => handleDeleteUser(u._id, u.name)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition-colors"
-                          title="Delete User"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
       )}
 
-      {/* TAB 3: COURSE DIRECTORY */}
-      {activeTab === 'courses' && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs space-y-6 animate-fade-in">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-            <div>
-              <h3 className="font-heading font-black text-slate-900 text-lg">Platform Course Directory ({courses.length})</h3>
-              <p className="text-xs text-slate-500 font-medium">All published courses across all instructors with active enrollments.</p>
-            </div>
-          </div>
-
-          {loadingCourses ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map(i => <div key={i} className="h-16 bg-slate-100 rounded-xl animate-pulse" />)}
-            </div>
-          ) : courses.length === 0 ? (
-            <p className="text-xs text-slate-400 italic py-8 text-center">No courses published on the platform yet.</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {courses.map((c) => (
-                <div key={c._id} className="border border-slate-200 rounded-xl p-5 bg-slate-50/50 flex flex-col justify-between">
-                  <div>
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                        {c.category} · {c.difficulty}
-                      </span>
-                      <button
-                        onClick={() => handleDeleteCourse(c._id, c.title)}
-                        className="text-slate-400 hover:text-rose-600 p-1"
-                        title="Delete Course"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                    <h4 className="font-heading font-bold text-slate-900 text-base mb-1">{c.title}</h4>
-                    <p className="text-xs text-slate-600 line-clamp-2 font-medium mb-3">{c.description}</p>
-                  </div>
-                  <div className="flex items-center justify-between text-xs font-bold text-slate-700 pt-3 border-t border-slate-200">
-                    <span>Instructor: <strong className="text-slate-900">{c.instructorName}</strong></span>
-                    <span className="text-[#3895D2] font-black">{c.enrollmentsCount || 0} Enrolled</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* TAB 4: AUDIT LOGS */}
-      {activeTab === 'logs' && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs space-y-6 animate-fade-in">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-            <div>
-              <h3 className="font-heading font-black text-slate-900 text-lg">Real-Time Security & Activity Logs</h3>
-              <p className="text-xs text-slate-500 font-medium">Immutable stream of platform events, registrations, updates, and transactions.</p>
-            </div>
-
-            <select
-              value={logActionFilter}
-              onChange={(e) => setLogActionFilter(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:border-[#3895D2]"
-            >
-              <option value="all">All Actions</option>
-              <option value="USER_REGISTERED">User Registrations</option>
-              <option value="USER_ROLE_CHANGED">Role Modifications</option>
-              <option value="COURSE_CREATED">Course Created</option>
-              <option value="QUIZ_COMPLETED">Quiz Completed</option>
-              <option value="CREDITS_ADJUSTED">Credits Adjusted</option>
-            </select>
-          </div>
-
-          {loadingLogs ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map(i => <div key={i} className="h-12 bg-slate-100 rounded-xl animate-pulse" />)}
-            </div>
-          ) : logs.length === 0 ? (
-            <p className="text-xs text-slate-400 italic py-8 text-center">No activity logs recorded.</p>
-          ) : (
-            <div className="space-y-2.5">
-              {logs.map((log) => (
-                <div key={log._id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-100 text-xs gap-2">
-                  <div className="flex items-center gap-3">
-                    <span className={`px-2.5 py-1 rounded-md text-[10px] font-mono font-bold uppercase border ${getActionBadge(log.action)}`}>
-                      {log.action}
-                    </span>
-                    <div>
-                      <span className="font-bold text-slate-900">{log.userName || 'System Agent'}</span>
-                      <span className="text-slate-600 ml-1.5">{log.target ? `→ ${log.target}` : ''}</span>
-                    </div>
-                  </div>
-                  <span className="text-[11px] font-mono text-slate-400">
-                    {new Date(log.createdAt).toLocaleString()}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* MODAL: GRANT / ADJUST CREDITS */}
-      {creditModalUser && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleAdjustCredits} className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 md:p-8 shadow-2xl space-y-4 animate-scale-up">
-            <div className="flex justify-between items-center pb-2 border-b">
-              <h3 className="font-heading font-bold text-slate-900 text-base">Grant Credits to {creditModalUser.name}</h3>
-              <button type="button" onClick={() => setCreditModalUser(null)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Amount to Add (or negative to deduct)</label>
-              <input
-                type="number"
-                required
-                value={creditAmount}
-                onChange={e => setCreditAmount(Number(e.target.value))}
-                className="w-full border rounded-xl px-3 py-2 text-xs font-mono font-bold"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Reason / Note</label>
-              <input
-                type="text"
-                required
-                value={creditReason}
-                onChange={e => setCreditReason(e.target.value)}
-                className="w-full border rounded-xl px-3 py-2 text-xs"
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setCreditModalUser(null)} className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">Cancel</button>
-              <button type="submit" className="px-5 py-2 bg-[#EA4532] text-white rounded-xl text-xs font-bold">Confirm Adjustment</button>
-            </div>
-          </form>
-        </div>
-      )}
     </div>
   )
 }

@@ -1,85 +1,53 @@
 import { useState, useEffect } from 'react'
 import api from '../lib/api'
+import CourseBuilder from '../components/CourseBuilder'
 import {
-  BookOpen, Plus, Trash2, Edit3, ChevronDown, ChevronRight,
-  FileText, HelpCircle, Layers, CheckCircle2, AlertCircle, Save,
-  Eye, Sparkles, Clock, BarChart2, ShieldAlert, Video, Download,
-  Code, Calendar, ExternalLink, X, PlusCircle, Users
+  BookOpen, Plus, Trash2, Edit3, ChevronRight,
+  FileText, HelpCircle, Layers, CheckCircle2, AlertCircle,
+  Eye, Sparkles, Clock, BarChart2, Video, Download,
+  Calendar, ExternalLink, X, Users, Send, TrendingUp, Check
 } from 'lucide-react'
 
 export default function InstructorDashboard() {
   const [activeTab, setActiveTab] = useState('courses') // 'courses' | 'events' | 'resources' | 'projects'
   
-  // Courses state
+  // Instructor Stats & Courses
+  const [stats, setStats] = useState({
+    totalCourses: 0,
+    publishedCourses: 0,
+    draftCourses: 0,
+    pendingCourses: 0,
+    totalStudents: 0,
+    avgCompletion: 0,
+  })
   const [courses, setCourses] = useState([])
+  const [courseFilter, setCourseFilter] = useState('all') // 'all' | 'published' | 'draft' | 'submitted'
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [newCourse, setNewCourse] = useState({
-    title: '',
-    description: '',
-    category: 'Web Development',
-    difficulty: 'Beginner',
-    estimatedHours: 8,
-    creditsCost: 50,
-  })
 
-  const [selectedCourse, setSelectedCourse] = useState(null)
-  const [courseDetails, setCourseDetails] = useState(null)
-  const [loadingDetails, setLoadingDetails] = useState(false)
-  const [newModuleTitle, setNewModuleTitle] = useState('')
-  const [showAddModule, setShowAddModule] = useState(false)
-  const [activeModuleForLesson, setActiveModuleForLesson] = useState(null)
-  const [lessonForm, setLessonForm] = useState({ title: '', content: '' })
-  const [editingLessonId, setEditingLessonId] = useState(null)
-  const [showLessonModal, setShowLessonModal] = useState(false)
-  const [previewMarkdown, setPreviewMarkdown] = useState(false)
-  const [activeModuleForQuiz, setActiveModuleForQuiz] = useState(null)
-  const [quizQuestions, setQuizQuestions] = useState([])
-  const [showQuizModal, setShowQuizModal] = useState(false)
+  // Course Builder Modal State
+  const [builderOpen, setBuilderOpen] = useState(false)
+  const [selectedCourseId, setSelectedCourseId] = useState(null)
 
-  // Events state
+  // Analytics Modal State
+  const [analyticsOpen, setAnalyticsOpen] = useState(false)
+  const [analyticsData, setAnalyticsData] = useState(null)
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false)
+
+  // Enrolled Students Modal State
+  const [studentsOpen, setStudentsOpen] = useState(false)
+  const [studentsList, setStudentsList] = useState([])
+  const [loadingStudents, setLoadingStudents] = useState(false)
+  const [activeCourseTitle, setActiveCourseTitle] = useState('')
+
+  // Events, Resources, Projects State
   const [events, setEvents] = useState([])
-  const [loadingEvents, setLoadingEvents] = useState(false)
-  const [showCreateEventModal, setShowCreateEventModal] = useState(false)
-  const [newEvent, setNewEvent] = useState({
-    title: '',
-    description: '',
-    date: '2026-08-20',
-    time: '04:00 PM - 05:30 PM IST',
-    mentor: '',
-    capacity: 50,
-    type: 'Workshop',
-    creditsCost: 0
-  })
-
-  // Resources state
   const [resources, setResources] = useState([])
-  const [loadingResources, setLoadingResources] = useState(false)
-  const [showCreateResourceModal, setShowCreateResourceModal] = useState(false)
-  const [newResource, setNewResource] = useState({
-    title: '',
-    description: '',
-    type: 'Cheatsheet',
-    downloadUrl: '',
-    creditsCost: 0
-  })
-
-  // Projects state
   const [projects, setProjects] = useState([])
-  const [loadingProjects, setLoadingProjects] = useState(false)
-  const [showCreateProjectModal, setShowCreateProjectModal] = useState(false)
-  const [newProject, setNewProject] = useState({
-    title: '',
-    problemStatement: '',
-    difficulty: 'Beginner',
-    requiredSkills: 'React, Node.js, TailwindCSS',
-    technology: 'JavaScript, Vite, MongoDB'
-  })
 
   useEffect(() => {
-    fetchInstructorCourses()
+    fetchInstructorData()
     fetchEvents()
     fetchResources()
     fetchProjects()
@@ -95,1032 +63,553 @@ export default function InstructorDashboard() {
     }
   }
 
-  // ─── COURSES LOGIC ─────────────────────────────────────────
-  const fetchInstructorCourses = async () => {
+  const fetchInstructorData = async () => {
     setLoading(true)
     try {
-      const res = await api.get('/instructor/courses')
-      const list = res.data || []
-      setCourses(list)
-      if (list.length > 0) {
-        handleSelectCourse(list[0])
-      } else {
-        setSelectedCourse(null)
-        setCourseDetails(null)
-      }
+      const [statsRes, coursesRes] = await Promise.all([
+        api.get('/instructor/stats'),
+        api.get('/instructor/courses'),
+      ])
+      setStats(statsRes.data || {})
+      setCourses(coursesRes.data || [])
     } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to load courses.', true)
+      showToast(err.response?.data?.message || 'Failed to load instructor courses.', true)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleCreateCourse = async (e) => {
-    e.preventDefault()
-    if (!newCourse.title.trim() || !newCourse.description.trim()) {
-      showToast('Please provide course title and description.', true)
-      return
-    }
+  const fetchEvents = async () => {
     try {
-      const res = await api.post('/instructor/courses', newCourse)
-      showToast(`Course "${res.data.title}" created successfully!`)
-      setShowCreateModal(false)
-      setNewCourse({
-        title: '',
-        description: '',
-        category: 'Web Development',
-        difficulty: 'Beginner',
-        estimatedHours: 8,
-        creditsCost: 50
-      })
-      fetchInstructorCourses()
+      const { data } = await api.get('/events')
+      setEvents(data || [])
+    } catch { /* ignore */ }
+  }
+
+  const fetchResources = async () => {
+    try {
+      const { data } = await api.get('/resources')
+      setResources(data || [])
+    } catch { /* ignore */ }
+  }
+
+  const fetchProjects = async () => {
+    try {
+      const { data } = await api.get('/projects')
+      setProjects(data || [])
+    } catch { /* ignore */ }
+  }
+
+  // Open Course Builder to Create Course
+  const handleOpenCreateCourse = () => {
+    setSelectedCourseId(null)
+    setBuilderOpen(true)
+  }
+
+  // Open Course Builder to Edit Curriculum
+  const handleOpenEditCourse = (courseId) => {
+    setSelectedCourseId(courseId)
+    setBuilderOpen(true)
+  }
+
+  // Open Analytics Modal
+  const handleOpenAnalytics = async (course) => {
+    setActiveCourseTitle(course.title)
+    setAnalyticsOpen(true)
+    setLoadingAnalytics(true)
+    try {
+      const { data } = await api.get(`/instructor/courses/${course._id}/analytics`)
+      setAnalyticsData(data)
     } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to create course.', true)
+      showToast('Failed to load course analytics.', true)
+      setAnalyticsOpen(false)
+    } finally {
+      setLoadingAnalytics(false)
     }
   }
 
+  // Open Enrolled Students Modal
+  const handleOpenStudents = async (course) => {
+    setActiveCourseTitle(course.title)
+    setStudentsOpen(true)
+    setLoadingStudents(true)
+    try {
+      const { data } = await api.get(`/instructor/courses/${course._id}/students`)
+      setStudentsList(data || [])
+    } catch (err) {
+      showToast('Failed to load enrolled learners.', true)
+      setStudentsOpen(false)
+    } finally {
+      setLoadingStudents(false)
+    }
+  }
+
+  // Submit Course for Review
+  const handleSubmitCourse = async (courseId) => {
+    try {
+      await api.post(`/instructor/courses/${courseId}/submit`)
+      showToast('Course submitted for Admin review!')
+      fetchInstructorData()
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to submit course.', true)
+    }
+  }
+
+  // Delete Course
   const handleDeleteCourse = async (courseId, title) => {
     if (!window.confirm(`Are you sure you want to permanently delete "${title}"?`)) return
     try {
       await api.delete(`/instructor/courses/${courseId}`)
-      showToast(`Deleted course "${title}".`)
-      if (selectedCourse?._id === courseId) {
-        setSelectedCourse(null)
-        setCourseDetails(null)
-      }
-      fetchInstructorCourses()
+      showToast(`Course "${title}" deleted successfully.`)
+      fetchInstructorData()
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to delete course.', true)
     }
   }
 
-  const handleSelectCourse = async (course) => {
-    setSelectedCourse(course)
-    setLoadingDetails(true)
-    try {
-      const res = await api.get(`/courses/${course._id}`)
-      setCourseDetails(res.data)
-    } catch (err) {
-      showToast('Failed to load course details.', true)
-    } finally {
-      setLoadingDetails(false)
-    }
-  }
-
-  const handleAddModule = async (e) => {
-    e.preventDefault()
-    if (!newModuleTitle.trim() || !selectedCourse) return
-    try {
-      await api.post(`/instructor/courses/${selectedCourse._id}/modules`, { title: newModuleTitle.trim() })
-      setNewModuleTitle('')
-      setShowAddModule(false)
-      showToast('Module added successfully!')
-      handleSelectCourse(selectedCourse)
-      fetchInstructorCourses()
-    } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to add module.', true)
-    }
-  }
-
-  const handleDeleteModule = async (moduleId, title) => {
-    if (!window.confirm(`Delete module "${title}" and all its lessons?`)) return
-    try {
-      await api.delete(`/instructor/modules/${moduleId}`)
-      showToast(`Deleted module "${title}".`)
-      handleSelectCourse(selectedCourse)
-      fetchInstructorCourses()
-    } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to delete module.', true)
-    }
-  }
-
-  const openAddLesson = (module) => {
-    setActiveModuleForLesson(module)
-    setEditingLessonId(null)
-    setLessonForm({
-      title: '',
-      content: `# ${module.title} — Lesson 1\n\nWelcome to this lesson! Explain the key concepts here.\n\n### Key Concepts:\n- Concept 1\n- Concept 2\n\n\`\`\`javascript\n// Sample code snippet\nconsole.log("Hello DigiGrowUp!");\n\`\`\``
-    })
-    setPreviewMarkdown(false)
-    setShowLessonModal(true)
-  }
-
-  const openEditLesson = (module, lesson) => {
-    setActiveModuleForLesson(module)
-    setEditingLessonId(lesson._id)
-    setLessonForm({ title: lesson.title, content: lesson.content || '' })
-    setPreviewMarkdown(false)
-    setShowLessonModal(true)
-  }
-
-  const handleSaveLesson = async (e) => {
-    e.preventDefault()
-    if (!lessonForm.title.trim()) {
-      showToast('Lesson title is required.', true)
-      return
-    }
-    try {
-      if (editingLessonId) {
-        await api.put(`/instructor/modules/${activeModuleForLesson._id}/lessons/${editingLessonId}`, lessonForm)
-        showToast('Lesson updated!')
-      } else {
-        await api.post(`/instructor/modules/${activeModuleForLesson._id}/lessons`, lessonForm)
-        showToast('Lesson created successfully!')
-      }
-      setShowLessonModal(false)
-      handleSelectCourse(selectedCourse)
-      fetchInstructorCourses()
-    } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to save lesson.', true)
-    }
-  }
-
-  const handleDeleteLesson = async (moduleId, lessonId, title) => {
-    if (!window.confirm(`Delete lesson "${title}"?`)) return
-    try {
-      await api.delete(`/instructor/modules/${moduleId}/lessons/${lessonId}`)
-      showToast(`Deleted lesson "${title}".`)
-      handleSelectCourse(selectedCourse)
-      fetchInstructorCourses()
-    } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to delete lesson.', true)
-    }
-  }
-
-  const openQuizBuilder = async (module) => {
-    setActiveModuleForQuiz(module)
-    try {
-      if (module.quizId) {
-        const res = await api.get(`/quizzes/${module.quizId}`)
-        setQuizQuestions(res.data?.questions || [])
-      } else {
-        setQuizQuestions([
-          {
-            text: 'What is the primary concept of this module?',
-            options: ['Option A', 'Option B', 'Option C', 'Option D'],
-            correctIndex: 0,
-            topic: module.title,
-            difficulty: 'easy'
-          }
-        ])
-      }
-      setShowQuizModal(true)
-    } catch (err) {
-      showToast('Failed to load quiz data.', true)
-    }
-  }
-
-  const handleAddQuestion = () => {
-    setQuizQuestions([
-      ...quizQuestions,
-      {
-        text: '',
-        options: ['', '', '', ''],
-        correctIndex: 0,
-        topic: activeModuleForQuiz?.title || 'General',
-        difficulty: 'medium'
-      }
-    ])
-  }
-
-  const handleUpdateQuestion = (index, field, value) => {
-    const updated = [...quizQuestions]
-    updated[index][field] = value
-    setQuizQuestions(updated)
-  }
-
-  const handleUpdateOption = (qIdx, optIdx, value) => {
-    const updated = [...quizQuestions]
-    updated[qIdx].options[optIdx] = value
-    setQuizQuestions(updated)
-  }
-
-  const handleRemoveQuestion = (index) => {
-    if (quizQuestions.length <= 1) {
-      showToast('A quiz must have at least 1 question.', true)
-      return
-    }
-    setQuizQuestions(quizQuestions.filter((_, i) => i !== index))
-  }
-
-  const handleSaveQuiz = async () => {
-    if (!activeModuleForQuiz) return
-    for (let i = 0; i < quizQuestions.length; i++) {
-      const q = quizQuestions[i]
-      if (!q.text.trim()) {
-        showToast(`Question ${i + 1} text cannot be empty.`, true)
-        return
-      }
-      if (q.options.some(opt => !opt.trim())) {
-        showToast(`All 4 options in Question ${i + 1} must be filled.`, true)
-        return
-      }
-    }
-    try {
-      await api.post(`/instructor/modules/${activeModuleForQuiz._id}/quiz`, { questions: quizQuestions })
-      showToast(`Quiz saved with ${quizQuestions.length} questions!`)
-      setShowQuizModal(false)
-      handleSelectCourse(selectedCourse)
-    } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to save quiz.', true)
-    }
-  }
-
-  // ─── EVENTS LOGIC ──────────────────────────────────────────
-  const fetchEvents = async () => {
-    setLoadingEvents(true)
-    try {
-      const res = await api.get('/instructor/events')
-      setEvents(res.data || [])
-    } catch (err) {
-      console.warn('Failed to load events:', err)
-    } finally {
-      setLoadingEvents(false)
-    }
-  }
-
-  const handleCreateEvent = async (e) => {
-    e.preventDefault()
-    if (!newEvent.title || !newEvent.description) {
-      showToast('Event title and description are required.', true)
-      return
-    }
-    try {
-      await api.post('/instructor/events', newEvent)
-      showToast(`Live event "${newEvent.title}" published!`)
-      setShowCreateEventModal(false)
-      setNewEvent({
-        title: '',
-        description: '',
-        date: '2026-08-20',
-        time: '04:00 PM - 05:30 PM IST',
-        mentor: '',
-        capacity: 50,
-        type: 'Workshop',
-        creditsCost: 0
-      })
-      fetchEvents()
-    } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to create event.', true)
-    }
-  }
-
-  const handleDeleteEvent = async (id, title) => {
-    if (!window.confirm(`Delete live event "${title}"?`)) return
-    try {
-      await api.delete(`/instructor/events/${id}`)
-      showToast(`Deleted event "${title}".`)
-      fetchEvents()
-    } catch (err) {
-      showToast('Failed to delete event.', true)
-    }
-  }
-
-  // ─── RESOURCES LOGIC ───────────────────────────────────────
-  const fetchResources = async () => {
-    setLoadingResources(true)
-    try {
-      const res = await api.get('/instructor/resources')
-      setResources(res.data || [])
-    } catch (err) {
-      console.warn('Failed to load resources:', err)
-    } finally {
-      setLoadingResources(false)
-    }
-  }
-
-  const handleCreateResource = async (e) => {
-    e.preventDefault()
-    if (!newResource.title) {
-      showToast('Resource title is required.', true)
-      return
-    }
-    try {
-      await api.post('/instructor/resources', newResource)
-      showToast(`Resource "${newResource.title}" published!`)
-      setShowCreateResourceModal(false)
-      setNewResource({
-        title: '',
-        description: '',
-        type: 'Cheatsheet',
-        downloadUrl: '',
-        creditsCost: 0
-      })
-      fetchResources()
-    } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to publish resource.', true)
-    }
-  }
-
-  const handleDeleteResource = async (id, title) => {
-    if (!window.confirm(`Delete resource "${title}"?`)) return
-    try {
-      await api.delete(`/instructor/resources/${id}`)
-      showToast(`Deleted resource "${title}".`)
-      fetchResources()
-    } catch (err) {
-      showToast('Failed to delete resource.', true)
-    }
-  }
-
-  // ─── PROJECTS LOGIC ────────────────────────────────────────
-  const fetchProjects = async () => {
-    setLoadingProjects(true)
-    try {
-      const res = await api.get('/instructor/projects')
-      setProjects(res.data || [])
-    } catch (err) {
-      console.warn('Failed to load projects:', err)
-    } finally {
-      setLoadingProjects(false)
-    }
-  }
-
-  const handleCreateProject = async (e) => {
-    e.preventDefault()
-    if (!newProject.title || !newProject.problemStatement) {
-      showToast('Project title and problem statement are required.', true)
-      return
-    }
-    try {
-      await api.post('/instructor/projects', newProject)
-      showToast(`Project challenge "${newProject.title}" published!`)
-      setShowCreateProjectModal(false)
-      setNewProject({
-        title: '',
-        problemStatement: '',
-        difficulty: 'Beginner',
-        requiredSkills: 'React, Node.js, TailwindCSS',
-        technology: 'JavaScript, Vite, MongoDB'
-      })
-      fetchProjects()
-    } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to create project.', true)
-    }
-  }
-
-  const handleDeleteProject = async (id, title) => {
-    if (!window.confirm(`Delete project challenge "${title}"?`)) return
-    try {
-      await api.delete(`/instructor/projects/${id}`)
-      showToast(`Deleted project "${title}".`)
-      fetchProjects()
-    } catch (err) {
-      showToast('Failed to delete project.', true)
-    }
-  }
+  const filteredCourses = courses.filter(c => {
+    if (courseFilter === 'all') return true
+    if (courseFilter === 'published') return c.status === 'published'
+    if (courseFilter === 'draft') return c.status === 'draft'
+    if (courseFilter === 'submitted') return ['submitted', 'under_review'].includes(c.status)
+    return true
+  })
 
   return (
-    <div className="page-enter max-w-7xl mx-auto space-y-6 pb-16">
-      {/* Toast notifications */}
-      {successMsg && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#0F172A] text-emerald-400 border border-emerald-500/30 px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 animate-fade-in text-sm font-medium">
-          <CheckCircle2 size={18} className="text-emerald-400 flex-shrink-0" />
-          <span>{successMsg}</span>
+    <div className="space-y-6 page-enter">
+      
+      {/* Toast Notifications */}
+      {error && (
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs sm:text-sm font-medium flex items-center justify-between shadow-2xs">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle size={16} className="flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+          <button onClick={() => setError('')} className="text-rose-500 hover:text-rose-700 text-xs">Dismiss</button>
         </div>
       )}
-      {error && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#0F172A] text-rose-400 border border-rose-500/30 px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 animate-fade-in text-sm font-medium">
-          <AlertCircle size={18} className="text-rose-400 flex-shrink-0" />
-          <span>{error}</span>
+      {successMsg && (
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm font-medium flex items-center gap-2.5 shadow-2xs">
+          <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />
+          <span>{successMsg}</span>
         </div>
       )}
 
       {/* Header Banner */}
-      <div className="bg-[#0F172A] border border-slate-800 rounded-2xl p-6 md:p-8 text-white relative overflow-hidden shadow-xl">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-mono tracking-widest text-[#3895D2] font-bold uppercase mb-2">
-              <Sparkles size={14} />
-              <span>TEACHER & INSTRUCTOR COMMAND STUDIO</span>
-            </div>
-            <h1 className="text-2xl md:text-3xl font-black font-heading tracking-tight text-white">
-              Curriculum, Events & Assets Studio
-            </h1>
-            <p className="text-slate-400 text-sm mt-1 max-w-2xl font-medium">
-              Publish courses, schedule live workshops, share educational cheat sheets, and author hands-on project challenges.
-            </p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white border border-slate-200 p-6 rounded-3xl shadow-xs">
+        <div>
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-mono text-xs text-emerald-600 uppercase tracking-widest font-bold text-[10px]">
+              INSTRUCTOR AUTHORING PORTAL
+            </span>
           </div>
-
-          <div className="flex items-center gap-2.5 flex-wrap">
-            {activeTab === 'courses' && (
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2 bg-[#EA4532] hover:bg-[#EA4532]/90 text-white text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl transition-all shadow-md"
-              >
-                <Plus size={16} />
-                <span>Create New Course</span>
-              </button>
-            )}
-            {activeTab === 'events' && (
-              <button
-                onClick={() => setShowCreateEventModal(true)}
-                className="flex items-center gap-2 bg-[#3895D2] hover:bg-[#2c7db5] text-white text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl transition-all shadow-md"
-              >
-                <Plus size={16} />
-                <span>Publish Live Event</span>
-              </button>
-            )}
-            {activeTab === 'resources' && (
-              <button
-                onClick={() => setShowCreateResourceModal(true)}
-                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl transition-all shadow-md"
-              >
-                <Plus size={16} />
-                <span>Upload Resource</span>
-              </button>
-            )}
-            {activeTab === 'projects' && (
-              <button
-                onClick={() => setShowCreateProjectModal(true)}
-                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl transition-all shadow-md"
-              >
-                <Plus size={16} />
-                <span>Create Project Challenge</span>
-              </button>
-            )}
-          </div>
+          <h2 className="text-xl sm:text-2xl font-heading font-black text-slate-900 tracking-tight">
+            Instructor Studio & Curriculum Management
+          </h2>
+          <p className="text-slate-500 text-xs sm:text-sm mt-0.5 font-medium">
+            Design video courses, author PDF guides, manage syllabus trees, and track learner completion.
+          </p>
         </div>
+
+        <button
+          onClick={handleOpenCreateCourse}
+          className="px-5 py-2.5 bg-[#3895D2] hover:bg-[#2c7db5] text-white rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs hover:shadow-md flex items-center gap-2 flex-shrink-0"
+        >
+          <Plus size={16} />
+          <span>Create Course</span>
+        </button>
       </div>
 
-      {/* Tabs Switcher Segmented Control */}
-      <div className="bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 inline-flex items-center gap-2 overflow-x-auto max-w-full">
+      {/* Real-time Instructor Metrics */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         {[
-          { id: 'courses', label: 'Courses', count: courses.length, icon: BookOpen },
-          { id: 'events', label: 'Live Events', count: events.length, icon: Video },
-          { id: 'resources', label: 'Resource Hub', count: resources.length, icon: Download },
-          { id: 'projects', label: 'Build Lab Projects', count: projects.length, icon: Code }
-        ].map((tab) => {
-          const Icon = tab.icon
-          const isActive = activeTab === tab.id
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-5 py-2.5 rounded-xl text-xs md:text-sm font-heading transition-all flex items-center gap-2.5 whitespace-nowrap ${
-                isActive
-                  ? 'bg-[#0F172A] text-white shadow-sm font-black'
-                  : 'bg-transparent text-slate-600 hover:text-slate-900 hover:bg-white/60 font-bold'
-              }`}
-            >
-              <Icon size={16} className={isActive ? 'text-[#3895D2]' : 'text-slate-400'} />
-              <span>{tab.label}</span>
-              <span className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold ${
-                isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-              }`}>
-                {tab.count}
-              </span>
-            </button>
-          )
-        })}
+          { label: 'Total Courses', value: stats.totalCourses || courses.length, color: '#3895D2', bg: 'border-l-[#3895D2]' },
+          { label: 'Published', value: stats.publishedCourses || 0, color: '#10B981', bg: 'border-l-emerald-500' },
+          { label: 'Drafts', value: stats.draftCourses || 0, color: '#64748B', bg: 'border-l-slate-400' },
+          { label: 'Total Students', value: stats.totalStudents || 0, color: '#0284C7', bg: 'border-l-sky-500' },
+          { label: 'Avg Completion', value: `${stats.avgCompletion || 0}%`, color: '#10B981', bg: 'border-l-emerald-500' },
+        ].map(({ label, value, color, bg }) => (
+          <div key={label} className={`bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs border-l-4 ${bg}`}>
+            <p className="text-slate-500 font-mono uppercase tracking-widest text-[10px] font-bold mb-1">{label}</p>
+            <span className="font-heading text-2xl font-black" style={{ color }}>{value}</span>
+          </div>
+        ))}
       </div>
 
-      {/* TAB 1: COURSES */}
+      {/* Tabs Navigation (Courses, Events, Resources, Projects) */}
+      <div className="bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 flex flex-wrap gap-1.5">
+        {[
+          { id: 'courses', label: 'Courses', icon: BookOpen, count: courses.length },
+          { id: 'events', label: 'Live Events', icon: Calendar, count: events.length },
+          { id: 'resources', label: 'Resources', icon: FileText, count: resources.length },
+          { id: 'projects', label: 'Projects', icon: Layers, count: projects.length },
+        ].map(({ id, label, icon: Icon, count }) => (
+          <button
+            key={id}
+            onClick={() => setActiveTab(id)}
+            className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 ${
+              activeTab === id
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+            }`}
+          >
+            <Icon size={15} />
+            <span>{label}</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+              activeTab === id ? 'bg-slate-100 text-slate-800' : 'bg-slate-200 text-slate-600'
+            }`}>
+              {count}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* ══════════════════════════════════════════════
+          TAB 1: COURSES MANAGEMENT & DIRECTORY
+      ══════════════════════════════════════════════ */}
       {activeTab === 'courses' && (
-        <>
-          {loading ? (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              <div className="lg:col-span-5 space-y-3">
-                {[1, 2].map(i => <div key={i} className="h-32 bg-slate-100 rounded-2xl animate-pulse" />)}
-              </div>
-              <div className="lg:col-span-7 h-80 bg-slate-100 rounded-2xl animate-pulse" />
+        <div className="space-y-4">
+          
+          {/* Status Filters */}
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-1.5 bg-white border border-slate-200 p-1 rounded-xl shadow-2xs">
+              {[
+                { id: 'all', label: 'All Courses' },
+                { id: 'published', label: 'Published' },
+                { id: 'draft', label: 'Drafts' },
+                { id: 'submitted', label: 'Pending Review' },
+              ].map(({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => setCourseFilter(id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    courseFilter === id ? 'bg-[#0F172A] text-white' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-          ) : courses.length === 0 ? (
-            <div className="bg-white border border-slate-200 rounded-3xl p-8 md:p-14 text-center shadow-xs space-y-6 max-w-3xl mx-auto">
-              <div className="w-20 h-20 rounded-2xl bg-blue-50 text-[#3895D2] flex items-center justify-center mx-auto shadow-inner">
-                <BookOpen size={40} />
-              </div>
-              <div className="space-y-2 max-w-md mx-auto">
-                <h3 className="text-xl md:text-2xl font-black text-slate-900 font-heading tracking-tight">
-                  Author Your First Interactive Course
-                </h3>
-                <p className="text-slate-600 text-xs md:text-sm font-medium leading-relaxed">
-                  Create structured curriculums with modules, markdown lessons, code snippets, and auto-graded assessments. Earn 80% royalties on student enrollments.
-                </p>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-left pt-2">
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                  <span className="text-[10px] font-black text-[#3895D2] font-mono uppercase tracking-wider">STEP 01</span>
-                  <h4 className="font-heading font-black text-slate-900 text-sm mt-1">Course Setup</h4>
-                  <p className="text-xs text-slate-500 mt-1 font-medium">Define title, category, and credit price.</p>
-                </div>
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                  <span className="text-[10px] font-black text-emerald-600 font-mono uppercase tracking-wider">STEP 02</span>
-                  <h4 className="font-heading font-black text-slate-900 text-sm mt-1">Lessons & Code</h4>
-                  <p className="text-xs text-slate-500 mt-1 font-medium">Add curriculum with markdown & quizzes.</p>
-                </div>
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                  <span className="text-[10px] font-black text-amber-600 font-mono uppercase tracking-wider">STEP 03</span>
-                  <h4 className="font-heading font-black text-slate-900 text-sm mt-1">Live Publish</h4>
-                  <p className="text-xs text-slate-500 mt-1 font-medium">Available immediately on Explore tracks.</p>
-                </div>
-              </div>
+            <span className="text-xs font-medium text-slate-500">
+              Showing {filteredCourses.length} of {courses.length} courses
+            </span>
+          </div>
 
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="inline-flex items-center gap-2 px-6 py-3.5 bg-[#EA4532] hover:bg-[#EA4532]/90 text-white rounded-xl text-xs md:text-sm font-bold font-heading transition-all shadow-md hover:shadow-lg"
-              >
-                <Plus size={16} />
-                <span>Create New Course Track</span>
-              </button>
+          {/* Courses Table / Cards */}
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-28 rounded-2xl bg-white border border-slate-200 shimmer" />
+              ))}
+            </div>
+          ) : filteredCourses.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center shadow-xs">
+              <BookOpen size={36} className="text-slate-400 mx-auto mb-3" />
+              <h4 className="font-heading font-bold text-slate-800 text-base">No courses found</h4>
+              <p className="text-slate-500 text-xs mt-1 max-w-md mx-auto">
+                {courseFilter === 'all'
+                  ? "You haven't created any courses yet. Start by building your first video lecture track or PDF document guide."
+                  : `No courses match the "${courseFilter}" status filter.`}
+              </p>
+              {courseFilter === 'all' && (
+                <button
+                  onClick={handleOpenCreateCourse}
+                  className="mt-4 px-5 py-2 bg-[#3895D2] text-white rounded-xl text-xs font-bold hover:bg-[#2c7db5] shadow-xs"
+                >
+                  + Create Your First Course
+                </button>
+              )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              {/* Left Column: Courses list (5 cols) */}
-              <div className="lg:col-span-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xs font-mono uppercase font-bold text-slate-500 tracking-wider">
-                    Your Published Courses ({courses.length})
-                  </h2>
-                </div>
+            <div className="grid grid-cols-1 gap-3.5">
+              {filteredCourses.map((c) => (
+                <div
+                  key={c._id}
+                  className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs hover:shadow-xs transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
+                >
+                  {/* Left: Thumbnail & Course Info */}
+                  <div className="flex items-start gap-4 min-w-0 flex-1">
+                    <div className="w-14 h-14 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 flex-shrink-0 overflow-hidden">
+                      {c.thumbnail ? (
+                        <img src={c.thumbnail} alt={c.title} className="w-full h-full object-cover" />
+                      ) : c.courseType === 'pdf' ? (
+                        <FileText size={24} className="text-emerald-600" />
+                      ) : (
+                        <Video size={24} className="text-[#3895D2]" />
+                      )}
+                    </div>
 
-                <div className="space-y-3.5">
-                  {courses.map(c => {
-                    const isSelected = selectedCourse?._id === c._id
-                    return (
-                      <div
-                        key={c._id}
-                        onClick={() => handleSelectCourse(c)}
-                        className={`bg-white border rounded-2xl p-5 cursor-pointer transition-all shadow-2xs hover:shadow-xs ${
-                          isSelected ? 'border-[#3895D2] ring-2 ring-[#3895D2]/20 bg-blue-50/20' : 'border-slate-200 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="flex justify-between items-start mb-2.5">
-                          <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md bg-slate-100 text-slate-800 border border-slate-200">
-                            {c.category} · {c.difficulty}
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleDeleteCourse(c._id, c.title)
-                            }}
-                            className="text-slate-400 hover:text-rose-600 p-1 transition-colors"
-                            title="Delete Course"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                        <h3 className="font-heading font-black text-slate-900 text-base mb-1.5">{c.title}</h3>
-                        <p className="text-xs text-slate-600 line-clamp-2 font-medium mb-3.5 leading-relaxed">{c.description}</p>
-                        <div className="flex justify-between items-center text-xs font-bold text-slate-700 pt-3 border-t border-slate-100">
-                          <span className="flex items-center gap-1.5 text-slate-700">
-                            <Layers size={14} className="text-[#3895D2]" />
-                            <span>{c.moduleCount || 0} Modules</span>
-                          </span>
-                          <span className="bg-[#3895D2]/10 text-[#3895D2] border border-[#3895D2]/20 px-2.5 py-0.5 rounded-md font-black">
-                            {c.creditsCost || 0} Credits
-                          </span>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                          c.courseType === 'pdf'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-sky-50 text-[#3895D2] border border-sky-200'
+                        }`}>
+                          {c.courseType === 'pdf' ? '📄 PDF Course' : '🎥 Video Course'}
+                        </span>
 
-              {/* Right Column: Curriculum Builder (7 cols) */}
-              <div className="lg:col-span-7">
-                {selectedCourse ? (
-                  <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs space-y-6">
-                    <div className="flex justify-between items-center pb-4 border-b border-slate-100">
-                      <div>
-                        <span className="text-[10px] font-mono font-bold text-[#3895D2] uppercase tracking-wider">CURRICULUM BUILDER</span>
-                        <h3 className="font-heading font-black text-slate-900 text-xl">{selectedCourse.title}</h3>
+                        <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                          c.status === 'published'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : c.status === 'submitted'
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                            : c.status === 'rejected'
+                            ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                            : 'bg-slate-100 text-slate-600 border border-slate-200'
+                        }`}>
+                          {c.status}
+                        </span>
+
+                        <span className="text-slate-400 text-xs">·</span>
+                        <span className="text-slate-500 text-xs font-semibold">{c.category}</span>
+                        <span className="text-slate-400 text-xs">·</span>
+                        <span className="text-slate-500 text-xs font-mono">{c.difficulty}</span>
                       </div>
+
+                      <h4 className="font-heading font-bold text-slate-900 text-base leading-tight truncate">
+                        {c.title}
+                      </h4>
+
+                      {c.rejectionReason && (
+                        <p className="text-rose-600 text-xs mt-1 font-medium bg-rose-50 p-2 rounded-lg border border-rose-100">
+                          Rejection feedback: {c.rejectionReason}
+                        </p>
+                      )}
+
+                      <div className="flex items-center gap-4 text-slate-500 text-xs font-mono mt-2 flex-wrap">
+                        <span>{c.moduleCount || 0} {c.courseType === 'pdf' ? 'chapters' : 'modules'}</span>
+                        <span>{c.lessonCount || 0} {c.courseType === 'pdf' ? 'documents' : 'lessons'}</span>
+                        <span className="text-slate-800 font-bold">{c.enrolledStudentsCount || 0} learners</span>
+                        <span className="text-emerald-600 font-bold">{c.avgCompletion || 0}% avg progress</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right: Actions */}
+                  <div className="flex items-center gap-2 flex-shrink-0 flex-wrap pt-3 md:pt-0 border-t md:border-t-0 border-slate-100">
+                    <button
+                      onClick={() => handleOpenEditCourse(c._id)}
+                      className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                    >
+                      <Edit3 size={13} />
+                      <span>Edit Curriculum</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleOpenAnalytics(c)}
+                      className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5"
+                    >
+                      <BarChart2 size={13} className="text-[#3895D2]" />
+                      <span>Analytics</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleOpenStudents(c)}
+                      className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5"
+                    >
+                      <Users size={13} className="text-emerald-600" />
+                      <span>Students ({c.enrolledStudentsCount || 0})</span>
+                    </button>
+
+                    {c.status === 'draft' || c.status === 'rejected' ? (
                       <button
-                        onClick={() => setShowAddModule(true)}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-[#3895D2] hover:bg-[#2c7db5] text-white text-xs font-bold rounded-xl shadow-xs transition-all"
+                        onClick={() => handleSubmitCourse(c._id)}
+                        className="px-3.5 py-2 bg-[#3895D2]/10 hover:bg-[#3895D2]/20 text-[#3895D2] rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
                       >
-                        <Plus size={14} />
-                        <span>Add Module</span>
+                        <Send size={13} />
+                        <span>Submit</span>
                       </button>
-                    </div>
+                    ) : null}
 
-                    {showAddModule && (
-                      <form onSubmit={handleAddModule} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3 animate-fade-in">
-                        <label className="text-xs font-bold text-slate-700">Module Title</label>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            placeholder="e.g. Module 1: Introduction to Web Architecture"
-                            value={newModuleTitle}
-                            onChange={e => setNewModuleTitle(e.target.value)}
-                            className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#3895D2]"
-                            autoFocus
-                          />
-                          <button type="submit" className="px-4 py-2 bg-[#3895D2] text-white text-xs font-bold rounded-xl">Save</button>
-                        </div>
-                      </form>
-                    )}
-
-                    {/* Modules List */}
-                    {courseDetails?.modules?.length === 0 ? (
-                      <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-8 text-center space-y-2">
-                        <Layers size={28} className="text-slate-400 mx-auto" />
-                        <p className="text-sm font-bold text-slate-800">No modules added to this course yet.</p>
-                        <p className="text-xs text-slate-500">Click "Add Module" above to start adding lessons and quizzes.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {courseDetails?.modules?.map((mod, idx) => (
-                          <div key={mod._id} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
-                            <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                              <span className="text-xs font-bold text-slate-800">Module {idx + 1}: {mod.title}</span>
-                              <div className="flex items-center gap-2">
-                                <button onClick={() => openAddLesson(mod)} className="text-xs font-bold text-[#3895D2] hover:underline">+ Lesson</button>
-                                <button onClick={() => openQuizBuilder(mod)} className="text-xs font-bold text-amber-600 hover:underline">+ Quiz</button>
-                                <button onClick={() => handleDeleteModule(mod._id, mod.title)} className="text-slate-400 hover:text-rose-600"><Trash2 size={13} /></button>
-                              </div>
-                            </div>
-                            <div className="p-4 space-y-2">
-                              {mod.lessons?.length === 0 ? (
-                                <p className="text-xs text-slate-400 italic">No lessons yet. Click "+ Lesson" to author markdown content.</p>
-                              ) : (
-                                mod.lessons?.map((les) => (
-                                  <div key={les._id} className="flex justify-between items-center p-2 rounded-lg bg-slate-50 text-xs font-medium">
-                                    <span className="text-slate-700 font-semibold">{les.title}</span>
-                                    <div className="flex items-center gap-2">
-                                      <button onClick={() => openEditLesson(mod, les)} className="text-slate-500 hover:text-slate-900"><Edit3 size={13} /></button>
-                                      <button onClick={() => handleDeleteLesson(mod._id, les._id, les.title)} className="text-slate-400 hover:text-rose-600"><Trash2 size={13} /></button>
-                                    </div>
-                                  </div>
-                                ))
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-500 shadow-2xs space-y-4">
-                    <div className="w-16 h-16 rounded-2xl bg-blue-50 text-[#3895D2] flex items-center justify-center mx-auto">
-                      <Layers size={32} />
-                    </div>
-                    <div>
-                      <h4 className="text-lg font-black text-slate-900 font-heading">Course Curriculum Editor</h4>
-                      <p className="text-xs text-slate-600 max-w-md mx-auto mt-1 font-medium leading-relaxed">
-                        Select a course from the list on the left to structure its modules, write markdown lessons with interactive code snippets, and build auto-graded assessment quizzes.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* TAB 2: LIVE EVENTS */}
-      {activeTab === 'events' && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs space-y-6">
-          <div className="flex justify-between items-center pb-4 border-b border-slate-100">
-            <div>
-              <h3 className="font-heading font-black text-slate-900 text-lg">Published Live Events & Workshops ({events.length})</h3>
-              <p className="text-xs text-slate-600 font-medium">All sessions are instantly synced and broadcast to student masterclass schedules.</p>
-            </div>
-            <button
-              onClick={() => setShowCreateEventModal(true)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-[#3895D2] hover:bg-[#2c7db5] text-white text-xs font-bold rounded-xl shadow-xs transition-all"
-            >
-              <Plus size={14} />
-              <span>Schedule Event</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {events.map((e) => (
-              <div key={e._id} className="border border-slate-200 rounded-2xl p-5 bg-white shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between">
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-[11px] font-black tracking-wider text-emerald-800 bg-emerald-100 border border-emerald-200 px-3 py-0.5 rounded-full uppercase">
-                      ● {e.type || 'Workshop'}
-                    </span>
                     <button
-                      onClick={() => handleDeleteEvent(e._id, e.title)}
-                      className="text-slate-400 hover:text-rose-600 p-1 transition-colors"
-                      title="Delete Event"
+                      onClick={() => handleDeleteCourse(c._id, c.title)}
+                      className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                      title="Delete Course"
                     >
                       <Trash2 size={15} />
                     </button>
-                  </div>
-                  <h4 className="font-heading font-black text-slate-900 text-base mb-2">{e.title}</h4>
-                  <p className="text-xs text-slate-600 line-clamp-3 font-medium mb-4 leading-relaxed">{e.description}</p>
-                </div>
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-700">
-                  <span className="text-slate-700">📅 {e.date} · ⏰ {e.time}</span>
-                  <span className="text-[#3895D2]">👥 {e.capacity} Seats</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 3: RESOURCES */}
-      {activeTab === 'resources' && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs space-y-6">
-          <div className="flex justify-between items-center pb-4 border-b border-slate-100">
-            <div>
-              <h3 className="font-heading font-black text-slate-900 text-lg">Published Educational Resources ({resources.length})</h3>
-              <p className="text-xs text-slate-600 font-medium">Cheat sheets, architectural maps, starter templates, and code banks.</p>
-            </div>
-            <button
-              onClick={() => setShowCreateResourceModal(true)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all"
-            >
-              <Plus size={14} />
-              <span>Upload Resource</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {resources.map((r) => (
-              <div key={r._id} className="border border-slate-200 rounded-2xl p-5 bg-white shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between">
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-[11px] font-black tracking-wider text-purple-800 bg-purple-100 border border-purple-200 px-3 py-0.5 rounded-full uppercase">
-                      📄 {r.type || 'Cheatsheet'}
-                    </span>
-                    <button
-                      onClick={() => handleDeleteResource(r._id, r.title)}
-                      className="text-slate-400 hover:text-rose-600 p-1 transition-colors"
-                      title="Delete Resource"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                  <h4 className="font-heading font-black text-slate-900 text-base mb-2">{r.title}</h4>
-                  <p className="text-xs text-slate-600 line-clamp-3 font-medium mb-4 leading-relaxed">{r.description || 'Verified engineering learning asset.'}</p>
-                </div>
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-700">
-                  <span className="text-slate-500">🔗 {r.downloadUrl ? 'Direct Link Ready' : 'In-App Preview'}</span>
-                  <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-md font-black">
-                    {r.creditsCost === 0 ? 'FREE' : `${r.creditsCost} Credits`}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 4: PROJECTS */}
-      {activeTab === 'projects' && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs space-y-6">
-          <div className="flex justify-between items-center pb-4 border-b border-slate-100">
-            <div>
-              <h3 className="font-heading font-black text-slate-900 text-lg">Build Lab Project Challenges ({projects.length})</h3>
-              <p className="text-xs text-slate-600 font-medium">Real-world projects for students to implement and submit code repositories.</p>
-            </div>
-            <button
-              onClick={() => setShowCreateProjectModal(true)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all"
-            >
-              <Plus size={14} />
-              <span>Create Project</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {projects.map((p) => (
-              <div key={p._id} className="border border-slate-200 rounded-2xl p-5 bg-white shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between">
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-[11px] font-black tracking-wider text-amber-800 bg-amber-100 border border-amber-200 px-3 py-0.5 rounded-full uppercase">
-                      🎯 {p.difficulty || 'Beginner'}
-                    </span>
-                    <button
-                      onClick={() => handleDeleteProject(p._id, p.title)}
-                      className="text-slate-400 hover:text-rose-600 p-1 transition-colors"
-                      title="Delete Project"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                  <h4 className="font-heading font-black text-slate-900 text-base mb-2">{p.title}</h4>
-                  <p className="text-xs text-slate-600 line-clamp-3 font-medium mb-4 leading-relaxed">{p.problemStatement}</p>
-                </div>
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-700">
-                  <span className="text-slate-600 truncate max-w-[240px]">
-                    Skills: {Array.isArray(p.requiredSkills) ? p.requiredSkills.join(', ') : p.requiredSkills}
-                  </span>
-                  <span className="text-purple-600 font-black">+50 XP</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 1: CREATE COURSE */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleCreateCourse} className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 md:p-8 shadow-2xl space-y-4 animate-scale-up">
-            <div className="flex justify-between items-center">
-              <h3 className="font-heading font-bold text-slate-900 text-lg">Author New Course</h3>
-              <button type="button" onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Course Title</label>
-              <input type="text" required value={newCourse.title} onChange={e => setNewCourse({ ...newCourse, title: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Description</label>
-              <textarea rows={3} required value={newCourse.description} onChange={e => setNewCourse({ ...newCourse, description: e.target.value })} className="w-full border rounded-xl p-3 text-xs" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Difficulty</label>
-                <select value={newCourse.difficulty} onChange={e => setNewCourse({ ...newCourse, difficulty: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs">
-                  <option value="Beginner">Beginner</option>
-                  <option value="Intermediate">Intermediate</option>
-                  <option value="Advanced">Advanced</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Credits Unlock Cost</label>
-                <input type="number" value={newCourse.creditsCost} onChange={e => setNewCourse({ ...newCourse, creditsCost: Number(e.target.value) })} className="w-full border rounded-xl px-3 py-2 text-xs" />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setShowCreateModal(false)} className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">Cancel</button>
-              <button type="submit" className="px-5 py-2 bg-[#EA4532] text-white rounded-xl text-xs font-bold">Create Course</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* MODAL 2: CREATE LIVE EVENT */}
-      {showCreateEventModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleCreateEvent} className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 md:p-8 shadow-2xl space-y-4 animate-scale-up">
-            <div className="flex justify-between items-center">
-              <h3 className="font-heading font-bold text-slate-900 text-lg">Schedule Live Event</h3>
-              <button type="button" onClick={() => setShowCreateEventModal(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Event Title</label>
-              <input type="text" required value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Description</label>
-              <textarea rows={3} required value={newEvent.description} onChange={e => setNewEvent({ ...newEvent, description: e.target.value })} className="w-full border rounded-xl p-3 text-xs" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Date</label>
-                <input type="date" value={newEvent.date} onChange={e => setNewEvent({ ...newEvent, date: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Time (e.g. 04:00 PM IST)</label>
-                <input type="text" value={newEvent.time} onChange={e => setNewEvent({ ...newEvent, time: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs" />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setShowCreateEventModal(false)} className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">Cancel</button>
-              <button type="submit" className="px-5 py-2 bg-[#3895D2] text-white rounded-xl text-xs font-bold">Publish Event</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* MODAL 3: CREATE RESOURCE */}
-      {showCreateResourceModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleCreateResource} className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 md:p-8 shadow-2xl space-y-4 animate-scale-up">
-            <div className="flex justify-between items-center">
-              <h3 className="font-heading font-bold text-slate-900 text-lg">Publish Educational Resource</h3>
-              <button type="button" onClick={() => setShowCreateResourceModal(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Resource Title</label>
-              <input type="text" required value={newResource.title} onChange={e => setNewResource({ ...newResource, title: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Description / Summary</label>
-              <textarea rows={3} value={newResource.description} onChange={e => setNewResource({ ...newResource, description: e.target.value })} className="w-full border rounded-xl p-3 text-xs" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Type</label>
-                <select value={newResource.type} onChange={e => setNewResource({ ...newResource, type: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs">
-                  <option value="Cheatsheet">Cheat Sheet</option>
-                  <option value="PDF">PDF Guide</option>
-                  <option value="Template">Starter Template</option>
-                  <option value="Code">Code Bank</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Credits Cost (0 = Free)</label>
-                <input type="number" value={newResource.creditsCost} onChange={e => setNewResource({ ...newResource, creditsCost: Number(e.target.value) })} className="w-full border rounded-xl px-3 py-2 text-xs" />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setShowCreateResourceModal(false)} className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">Cancel</button>
-              <button type="submit" className="px-5 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold">Publish Resource</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* MODAL 4: CREATE PROJECT */}
-      {showCreateProjectModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleCreateProject} className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 md:p-8 shadow-2xl space-y-4 animate-scale-up">
-            <div className="flex justify-between items-center">
-              <h3 className="font-heading font-bold text-slate-900 text-lg">Author Project Challenge</h3>
-              <button type="button" onClick={() => setShowCreateProjectModal(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Project Title</label>
-              <input type="text" required value={newProject.title} onChange={e => setNewProject({ ...newProject, title: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Problem Statement</label>
-              <textarea rows={3} required value={newProject.problemStatement} onChange={e => setNewProject({ ...newProject, problemStatement: e.target.value })} className="w-full border rounded-xl p-3 text-xs" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Difficulty</label>
-                <select value={newProject.difficulty} onChange={e => setNewProject({ ...newProject, difficulty: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs">
-                  <option value="Beginner">Beginner</option>
-                  <option value="Intermediate">Intermediate</option>
-                  <option value="Advanced">Advanced</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Required Skills (Comma separated)</label>
-                <input type="text" value={newProject.requiredSkills} onChange={e => setNewProject({ ...newProject, requiredSkills: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs" />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setShowCreateProjectModal(false)} className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">Cancel</button>
-              <button type="submit" className="px-5 py-2 bg-purple-600 text-white rounded-xl text-xs font-bold">Publish Project</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* MODAL 5: LESSON MODAL */}
-      {showLessonModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleSaveLesson} className="bg-white border border-slate-200 rounded-2xl max-w-2xl w-full p-6 md:p-8 shadow-2xl space-y-4 animate-scale-up">
-            <div className="flex justify-between items-center">
-              <h3 className="font-heading font-bold text-slate-900 text-lg">Author Lesson</h3>
-              <button type="button" onClick={() => setShowLessonModal(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Lesson Title</label>
-              <input type="text" required value={lessonForm.title} onChange={e => setLessonForm({ ...lessonForm, title: e.target.value })} className="w-full border rounded-xl px-3 py-2 text-xs" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Markdown Lesson Content</label>
-              <textarea rows={8} required value={lessonForm.content} onChange={e => setLessonForm({ ...lessonForm, content: e.target.value })} className="w-full border rounded-xl p-3 text-xs font-mono" />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setShowLessonModal(false)} className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">Cancel</button>
-              <button type="submit" className="px-5 py-2 bg-[#3895D2] text-white rounded-xl text-xs font-bold">Save Lesson</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* MODAL 6: QUIZ MODAL */}
-      {showQuizModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-2xl w-full p-6 md:p-8 shadow-2xl space-y-4 max-h-[85vh] flex flex-col animate-scale-up">
-            <div className="flex justify-between items-center pb-2 border-b">
-              <h3 className="font-heading font-bold text-slate-900 text-lg">Quiz Authoring Builder</h3>
-              <button type="button" onClick={() => setShowQuizModal(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-              {quizQuestions.map((q, qIdx) => (
-                <div key={qIdx} className="p-4 bg-slate-50 border rounded-xl space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-slate-700">Question {qIdx + 1}</span>
-                    <button onClick={() => handleRemoveQuestion(qIdx)} className="text-rose-500 text-xs">Remove</button>
-                  </div>
-                  <input type="text" placeholder="Question prompt..." value={q.text} onChange={e => handleUpdateQuestion(qIdx, 'text', e.target.value)} className="w-full border rounded-lg px-3 py-1.5 text-xs" />
-                  <div className="grid grid-cols-2 gap-2">
-                    {q.options.map((opt, oIdx) => (
-                      <div key={oIdx} className="flex items-center gap-1.5">
-                        <input type="radio" name={`correct-${qIdx}`} checked={q.correctIndex === oIdx} onChange={() => handleUpdateQuestion(qIdx, 'correctIndex', oIdx)} />
-                        <input type="text" placeholder={`Option ${oIdx + 1}`} value={opt} onChange={e => handleUpdateOption(qIdx, oIdx, e.target.value)} className="w-full border rounded px-2 py-1 text-xs" />
-                      </div>
-                    ))}
                   </div>
                 </div>
               ))}
-              <button onClick={handleAddQuestion} className="w-full py-2 border-2 border-dashed rounded-xl text-xs font-bold text-[#3895D2] hover:bg-[#3895D2]/5">+ Add Question</button>
             </div>
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              <button type="button" onClick={() => setShowQuizModal(false)} className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">Cancel</button>
-              <button onClick={handleSaveQuiz} className="px-5 py-2 bg-[#3895D2] text-white rounded-xl text-xs font-bold">Save Complete Quiz</button>
+          )}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════
+          TAB 2, 3, 4: EVENTS, RESOURCES, PROJECTS
+      ══════════════════════════════════════════════ */}
+      {activeTab !== 'courses' && (
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs">
+          <h4 className="font-heading font-bold text-slate-900 text-base mb-4 capitalize">
+            Active {activeTab}
+          </h4>
+          <p className="text-slate-500 text-xs">
+            Manage your live workshops, downloadable study guides, and ecosystem projects.
+          </p>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════
+          COURSE BUILDER MODAL
+      ══════════════════════════════════════════════ */}
+      <CourseBuilder
+        isOpen={builderOpen}
+        onClose={() => setBuilderOpen(false)}
+        initialCourseId={selectedCourseId}
+        onSaved={fetchInstructorData}
+      />
+
+      {/* ══════════════════════════════════════════════
+          REAL COURSE ANALYTICS MODAL
+      ══════════════════════════════════════════════ */}
+      {analyticsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 flex-shrink-0">
+              <div>
+                <h4 className="font-heading font-black text-slate-900 text-base sm:text-lg">
+                  Course Analytics: {activeCourseTitle}
+                </h4>
+                <p className="text-slate-500 text-xs font-medium mt-0.5">Real-time learner engagement and completion metrics</p>
+              </div>
+              <button onClick={() => setAnalyticsOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto py-6 space-y-6">
+              {loadingAnalytics ? (
+                <div className="text-center py-12 text-slate-400 text-xs animate-pulse">Calculating metrics...</div>
+              ) : analyticsData ? (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-4 rounded-2xl bg-sky-50 border border-sky-100">
+                      <p className="text-sky-800 text-[10px] font-mono font-bold uppercase">Enrollments</p>
+                      <p className="text-2xl font-black text-slate-900 mt-1">{analyticsData.totalEnrollments || 0}</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100">
+                      <p className="text-amber-800 text-[10px] font-mono font-bold uppercase">Active Learners</p>
+                      <p className="text-2xl font-black text-slate-900 mt-1">{analyticsData.activeStudents || 0}</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100">
+                      <p className="text-emerald-800 text-[10px] font-mono font-bold uppercase">Completed</p>
+                      <p className="text-2xl font-black text-emerald-700 mt-1">{analyticsData.completedStudents || 0}</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-100">
+                      <p className="text-indigo-800 text-[10px] font-mono font-bold uppercase">Avg Progress</p>
+                      <p className="text-2xl font-black text-indigo-700 mt-1">{analyticsData.avgProgress || 0}%</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h5 className="font-heading font-bold text-slate-900 text-sm mb-3">Lesson-by-Lesson Completion Funnel</h5>
+                    <div className="space-y-2">
+                      {(analyticsData.lessonBreakdown || []).map((l, idx) => (
+                        <div key={l.lessonId} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-3 text-xs">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-mono text-slate-400 font-bold">#{idx + 1}</span>
+                            <span className="font-bold text-slate-800 truncate">{l.title}</span>
+                          </div>
+                          <div className="flex items-center gap-3 flex-shrink-0">
+                            <div className="w-28 bg-slate-200 h-2 rounded-full overflow-hidden">
+                              <div className="bg-[#3895D2] h-full" style={{ width: `${l.completionRate}%` }} />
+                            </div>
+                            <span className="font-mono font-bold text-slate-700 w-12 text-right">{l.completionRate}%</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : null}
+            </div>
+
+            <div className="flex justify-end pt-4 border-t border-slate-100 flex-shrink-0">
+              <button onClick={() => setAnalyticsOpen(false)} className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold">
+                Close
+              </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* ══════════════════════════════════════════════
+          ENROLLED STUDENTS MODAL
+      ══════════════════════════════════════════════ */}
+      {studentsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 flex-shrink-0">
+              <div>
+                <h4 className="font-heading font-black text-slate-900 text-base sm:text-lg">
+                  Enrolled Learners: {activeCourseTitle}
+                </h4>
+                <p className="text-slate-500 text-xs font-medium mt-0.5">Individual progress and engagement tracking</p>
+              </div>
+              <button onClick={() => setStudentsOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto py-4">
+              {loadingStudents ? (
+                <div className="text-center py-12 text-slate-400 text-xs animate-pulse">Loading learners...</div>
+              ) : studentsList.length === 0 ? (
+                <div className="text-center py-12 text-slate-400 text-xs">
+                  No students currently enrolled in this track.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {studentsList.map((st) => (
+                    <div key={st.enrollmentId} className="py-3.5 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-full bg-sky-50 border border-sky-100 flex items-center justify-center font-mono font-bold text-[#3895D2] flex-shrink-0">
+                          {st.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-heading font-bold text-slate-900 text-xs sm:text-sm truncate">{st.name}</p>
+                          <p className="text-slate-400 text-[11px] truncate">{st.email}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 flex-shrink-0">
+                        <div className="text-right">
+                          <span className={`font-mono font-black text-xs sm:text-sm ${
+                            st.progress === 100 ? 'text-emerald-600' : 'text-[#3895D2]'
+                          }`}>
+                            {st.progress}%
+                          </span>
+                          <p className="text-[10px] text-slate-400 font-mono">
+                            {st.status === 'completed' ? 'Completed' : 'In Progress'}
+                          </p>
+                        </div>
+
+                        <div className="w-20 sm:w-28 bg-slate-100 h-2 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full ${st.progress === 100 ? 'bg-emerald-500' : 'bg-[#3895D2]'}`}
+                            style={{ width: `${st.progress}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-4 border-t border-slate-100 flex-shrink-0">
+              <button onClick={() => setStudentsOpen(false)} className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

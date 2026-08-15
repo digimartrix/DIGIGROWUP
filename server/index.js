@@ -84,7 +84,17 @@ import achievementRoutes from './routes/achievements.js';
 import projectRoutes from './routes/projects.js';
 import adminRoutes from './routes/admin.js';
 import instructorRoutes from './routes/instructor.js';
+import uploadRoutes from './routes/uploads.js';
+import progressRoutes from './routes/progress.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { protect } from './middleware/auth.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Serve static uploads
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
@@ -104,6 +114,8 @@ app.use('/api/achievements', achievementRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/instructor', instructorRoutes);
+app.use('/api/uploads', uploadRoutes);
+app.use('/api/progress', progressRoutes);
 
 // Root Razorpay standard checkout endpoints
 app.post('/api/create-order', protect, handleCreateOrder);
