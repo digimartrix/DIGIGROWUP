@@ -1,10 +1,31 @@
+// Global polyfills for serverless PDF parsing compatibility
+if (typeof globalThis.DOMMatrix === 'undefined') {
+  globalThis.DOMMatrix = class DOMMatrix {};
+}
+if (typeof globalThis.ImageData === 'undefined') {
+  globalThis.ImageData = class ImageData {};
+}
+if (typeof globalThis.Path2D === 'undefined') {
+  globalThis.Path2D = class Path2D {};
+}
+
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.join(__dirname, '.env') });
 dotenv.config();
+
+// Ensure critical environment variables have sensible defaults
+process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://vedasaradhiv_db_user:Workshop123@digilearning.nzwp2hx.mongodb.net/?appName=Digilearning';
+process.env.GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 
 const app = express();
 
@@ -100,14 +121,9 @@ import adminRoutes from './routes/admin.js';
 import instructorRoutes from './routes/instructor.js';
 import uploadRoutes from './routes/uploads.js';
 import progressRoutes from './routes/progress.js';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { protect } from './middleware/auth.js';
 
 import FileStorage from './models/FileStorage.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Direct Permanent Stream Endpoint from MongoDB
 app.get(['/uploads/file/:id', '/api/uploads/file/:id'], async (req, res) => {

@@ -24,8 +24,6 @@ const uploadPdfMemory = multer({
   limits: { fileSize: 25 * 1024 * 1024 }, // 25MB max
 });
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-
 const router = express.Router();
 
 // All instructor routes require instructor or admin role
