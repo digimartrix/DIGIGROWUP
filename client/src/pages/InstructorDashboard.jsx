@@ -212,13 +212,23 @@ export default function InstructorDashboard() {
           </p>
         </div>
 
-        <button
-          onClick={handleOpenCreateCourse}
-          className="px-5 py-2.5 bg-[#3895D2] hover:bg-[#2c7db5] text-white rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs hover:shadow-md flex items-center gap-2 flex-shrink-0"
-        >
-          <Plus size={16} />
-          <span>Create Course</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={handleOpenCreateCourse}
+            className="px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-2xs flex items-center gap-2 flex-shrink-0"
+          >
+            <Sparkles size={16} className="text-indigo-600" />
+            <span>AI PDF to Course</span>
+          </button>
+
+          <button
+            onClick={handleOpenCreateCourse}
+            className="px-5 py-2.5 bg-[#3895D2] hover:bg-[#2c7db5] text-white rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs hover:shadow-md flex items-center gap-2 flex-shrink-0"
+          >
+            <Plus size={16} />
+            <span>Create Course</span>
+          </button>
+        </div>
       </div>
 
       {/* Real-time Instructor Metrics */}

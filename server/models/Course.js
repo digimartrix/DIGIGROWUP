@@ -10,10 +10,10 @@ const courseSchema = new mongoose.Schema({
   thumbnail: { type: String, default: '' },
   creditsCost: { type: Number, default: 0 }, // DigiCredits required (0 for free)
   
-  // Delivery Type: Video Course or PDF Course
+  // Delivery Type: Video Course, PDF Course, or Text/Interactive Course
   courseType: { 
     type: String, 
-    enum: ['video', 'pdf'], 
+    enum: ['video', 'pdf', 'text'], 
     default: 'video', 
     required: true 
   },

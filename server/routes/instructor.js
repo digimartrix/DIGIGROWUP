@@ -1,4 +1,7 @@
 import express from 'express';
+import multer from 'multer';
+import Groq from 'groq-sdk';
+import { createRequire } from 'module';
 import Course from '../models/Course.js';
 import Module from '../models/Module.js';
 import Lesson from '../models/Lesson.js';
@@ -12,6 +15,16 @@ import Project from '../models/Project.js';
 import ActivityLog from '../models/ActivityLog.js';
 import { protect } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roles.js';
+
+const require = createRequire(import.meta.url);
+const pdfParse = require('pdf-parse');
+
+const uploadPdfMemory = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB max
+});
+
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const router = express.Router();
 
@@ -419,32 +432,168 @@ router.get('/courses/:id/analytics', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /api/instructor/courses/:id/students — list enrolled students with real progress
-router.get('/courses/:id/students', async (req, res, next) => {
+// POST /api/instructor/courses/convert-pdf — AI extraction of PDF into text/markdown course
+router.post('/courses/convert-pdf', uploadPdfMemory.single('file'), async (req, res, next) => {
   try {
-    const course = await Course.findOne({ _id: req.params.id, createdBy: req.user.id }).lean();
-    if (!course) return res.status(404).json({ message: 'Course not found.' });
+    if (!req.file) {
+      return res.status(400).json({ message: 'No PDF file uploaded. Please select a .pdf document.' });
+    }
 
-    const enrollments = await Enrollment.find({ courseId: course._id })
-      .populate('userId', 'name email role avatar')
-      .populate('lastAccessedLesson', 'title type')
-      .sort('-updatedAt')
-      .lean();
+    if (req.file.mimetype !== 'application/pdf' && !req.file.originalname.endsWith('.pdf')) {
+      return res.status(400).json({ message: 'Only PDF documents (.pdf) can be processed.' });
+    }
 
-    const students = enrollments.map(e => ({
-      enrollmentId: e._id,
-      studentId: e.userId?._id,
-      name: e.userId?.name || 'Enrolled Student',
-      email: e.userId?.email || 'student@example.com',
-      progress: e.progress || 0,
-      status: e.status || 'active',
-      enrolledAt: e.enrolledAt,
-      completedAt: e.completedAt,
-      lastAccessedLesson: e.lastAccessedLesson ? e.lastAccessedLesson.title : 'Not started',
-    }));
+    console.log(`[AI PDF] Extracting text from ${req.file.originalname} (${req.file.size} bytes)...`);
+    const pdfData = await pdfParse(req.file.buffer);
+    const rawText = pdfData.text || '';
 
-    res.json(students);
-  } catch (err) { next(err); }
+    if (!rawText.trim() || rawText.trim().length < 50) {
+      return res.status(400).json({
+        message: 'Could not extract readable text from this PDF. It may be an image-only scanned document without an OCR text layer.',
+      });
+    }
+
+    // Clip raw text to ~30,000 characters to fit Groq context window comfortably
+    const cleanText = rawText.replace(/\s+/g, ' ').slice(0, 30000);
+
+    const userCategory = req.body.category || 'Software Engineering';
+    const userDifficulty = req.body.difficulty || 'Beginner';
+    const userTitleOverride = req.body.title || '';
+
+    const prompt = `You are a world-class instructional designer and educational curriculum architect.
+Analyze the following extracted content from a PDF document and structure it into a comprehensive, high-quality, multi-module interactive course.
+
+PDF TEXT CONTENT:
+"""
+${cleanText}
+"""
+
+Target Category: ${userCategory}
+Target Difficulty: ${userDifficulty}
+${userTitleOverride ? `Target Title Override: "${userTitleOverride}"` : ''}
+
+Output strictly valid JSON according to this exact JSON schema:
+{
+  "title": "Clear, professional, captivating course title",
+  "description": "Comprehensive 2-3 sentence course overview summarizing what students will learn and achieve.",
+  "category": "${userCategory}",
+  "difficulty": "${userDifficulty}",
+  "estimatedHours": 8,
+  "learningObjectives": [
+    "Comprehensive outcome 1",
+    "Comprehensive outcome 2",
+    "Comprehensive outcome 3",
+    "Comprehensive outcome 4"
+  ],
+  "modules": [
+    {
+      "title": "Module 1: Module Title",
+      "lessons": [
+        {
+          "title": "Lesson 1.1: Detailed Lesson Title",
+          "description": "Clear 1-2 sentence lesson summary",
+          "content": "# Lesson Title\\n\\nDetailed comprehensive conceptual breakdown.\\n\\n## Key Principles\\n- Principle 1: Explanation\\n- Principle 2: Explanation\\n\\n\`\`\`javascript\\n// Practical code or implementation example\\nfunction example() {\\n  return true;\\n}\\n\`\`\`\\n\\n## Summary & Key Takeaways\\n- Summary bullet 1\\n- Summary bullet 2"
+        }
+      ]
+    }
+  ]
+}
+
+Instructions:
+1. Divide the PDF material into 2 to 4 structured modules.
+2. Inside each module, generate 2 to 4 rich, well-written text lessons with deep instructional value based on the PDF content.
+3. Every lesson's "content" MUST be extensive, informative Markdown with proper headers (#, ##), explanations, code blocks where applicable, and key takeaways.
+4. Ensure strictly valid JSON with no markdown backticks outside the JSON string.`;
+
+    console.log('[AI PDF] Sending prompt to Groq (llama-3.1-8b-instant)...');
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
+      messages: [
+        { role: 'system', content: 'You are an expert curriculum designer that outputs strictly valid JSON only.' },
+        { role: 'user', content: prompt },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.3,
+    });
+
+    const parsedJson = JSON.parse(completion.choices[0]?.message?.content || '{}');
+    console.log('[AI PDF] Generated Course Title:', parsedJson.title);
+
+    // Save Course to MongoDB
+    const course = new Course({
+      title: userTitleOverride || parsedJson.title || req.file.originalname.replace('.pdf', ''),
+      description: parsedJson.description || `Structured interactive course converted from PDF: ${req.file.originalname}`,
+      category: parsedJson.category || userCategory,
+      difficulty: parsedJson.difficulty || userDifficulty,
+      estimatedHours: parsedJson.estimatedHours || 8,
+      estimatedDuration: `${parsedJson.estimatedHours || 8} hours`,
+      learningObjectives: parsedJson.learningObjectives || [],
+      courseType: 'text', // text format interactive course
+      status: 'draft',
+      createdBy: req.user.id,
+      instructorId: req.user.id,
+    });
+    await course.save();
+
+    let totalLessonsCount = 0;
+    const modulesToCreate = parsedJson.modules && parsedJson.modules.length > 0
+      ? parsedJson.modules
+      : [{ title: 'Module 1: Core Concepts', lessons: [{ title: 'Chapter 1', description: 'Overview', content: cleanText.slice(0, 2000) }] }];
+
+    for (let mIdx = 0; mIdx < modulesToCreate.length; mIdx++) {
+      const mData = modulesToCreate[mIdx];
+      const newModule = new Module({
+        courseId: course._id,
+        title: mData.title || `Module ${mIdx + 1}`,
+        order: mIdx + 1,
+      });
+      await newModule.save();
+
+      const lessonsToCreate = mData.lessons || [];
+      for (let lIdx = 0; lIdx < lessonsToCreate.length; lIdx++) {
+        const lData = lessonsToCreate[lIdx];
+        const contentStr = lData.content || `# ${lData.title || 'Lesson'}\n\n${lData.description || 'Lesson content'}`;
+        const wordCount = contentStr.trim().split(/\s+/).length;
+        const estDurationSec = Math.max(300, Math.round((wordCount / 200) * 60)); // ~200 wpm
+
+        const newLesson = new Lesson({
+          courseId: course._id,
+          moduleId: newModule._id,
+          title: lData.title || `Lesson ${lIdx + 1}`,
+          description: lData.description || '',
+          type: 'text',
+          content: contentStr,
+          duration: estDurationSec,
+          wordCount,
+          order: lIdx + 1,
+          uploadStatus: 'ready',
+        });
+        await newLesson.save();
+        totalLessonsCount++;
+      }
+    }
+
+    await logActivity(req.user, 'COURSE_PDF_CONVERTED', `Course: ${course.title}`, {
+      courseId: course._id,
+      pdfFileName: req.file.originalname,
+      modulesCount: modulesToCreate.length,
+      lessonsCount: totalLessonsCount,
+    });
+
+    res.json({
+      success: true,
+      message: `🎉 PDF converted successfully into ${modulesToCreate.length} modules and ${totalLessonsCount} text lessons!`,
+      courseId: course._id,
+      course,
+      modulesCount: modulesToCreate.length,
+      lessonsCount: totalLessonsCount,
+    });
+  } catch (err) {
+    console.error('[AI PDF] Conversion Error:', err);
+    res.status(500).json({
+      message: err.message || 'Failed to convert PDF into text course. Please check if the PDF contains readable text.',
+    });
+  }
 });
 
 export default router;
