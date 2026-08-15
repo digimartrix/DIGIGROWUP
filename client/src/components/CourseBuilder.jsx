@@ -1422,15 +1422,33 @@ export default function CourseBuilder({ isOpen, onClose, initialCourseId = null,
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto py-4">
+              <div className="flex-1 overflow-y-auto py-4 space-y-3">
                 {previewMedia.type === 'video' && previewMedia.url && (
                   <video src={previewMedia.url} controls className="w-full rounded-2xl aspect-video bg-black" />
                 )}
                 {previewMedia.type === 'pdf' && previewMedia.url && (
-                  <iframe src={previewMedia.url} title={previewMedia.title} className="w-full h-96 rounded-2xl border border-slate-200" />
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-200">
+                      <span className="text-xs font-bold text-slate-700 truncate">{previewMedia.title}</span>
+                      <a
+                        href={previewMedia.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-2xs"
+                      >
+                        <ExternalLink size={13} />
+                        <span>Open Document in Full Window</span>
+                      </a>
+                    </div>
+                    <iframe
+                      src={previewMedia.url}
+                      title={previewMedia.title}
+                      className="w-full h-96 rounded-2xl border border-slate-200 bg-slate-100"
+                    />
+                  </div>
                 )}
                 {previewMedia.content && (
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl mt-3 font-mono text-xs text-slate-800 whitespace-pre-wrap">
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl font-mono text-xs text-slate-800 whitespace-pre-wrap">
                     {previewMedia.content}
                   </div>
                 )}

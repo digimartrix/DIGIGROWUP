@@ -8,7 +8,13 @@ dotenv.config();
 
 const app = express();
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  frameguard: false,
+}));
+
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (mobile apps, curl, etc.)
@@ -26,7 +32,15 @@ app.use(cors({
   },
   credentials: true,
 }));
+
 app.use(express.json());
+
+// Allow iframe embedding and media streaming
+app.use((req, res, next) => {
+  res.removeHeader('X-Frame-Options');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  next();
+});
 
 // ── Cached MongoDB connection for Vercel serverless ──
 let isConnected = false;
@@ -90,12 +104,35 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { protect } from './middleware/auth.js';
 
+import FileStorage from './models/FileStorage.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Serve static uploads safely
+// Direct Permanent Stream Endpoint from MongoDB
+app.get(['/uploads/file/:id', '/api/uploads/file/:id'], async (req, res) => {
+  try {
+    const file = await FileStorage.findById(req.params.id);
+    if (!file) {
+      return res.status(404).json({ message: 'File not found.' });
+    }
+    res.setHeader('Content-Type', file.contentType || 'application/octet-stream');
+    res.setHeader('Content-Length', file.size || file.data.length);
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.originalName)}"`);
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.removeHeader('X-Frame-Options');
+    return res.send(file.data);
+  } catch (err) {
+    return res.status(500).json({ message: 'Error streaming file.' });
+  }
+});
+
+// Fallback disk static uploads
 const staticUploadsDir = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(__dirname, 'uploads');
 app.use('/uploads', express.static(staticUploadsDir));
+
+app.use('/api/uploads', uploadRoutes);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
